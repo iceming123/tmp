@@ -48,7 +48,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/event"
 	"github.com/truechain/truechain-engineering-code/internal/trueapi"
 	"github.com/truechain/truechain-engineering-code/log"
-	"github.com/truechain/truechain-engineering-code/miner"
 	"github.com/truechain/truechain-engineering-code/node"
 	"github.com/truechain/truechain-engineering-code/p2p"
 	"github.com/truechain/truechain-engineering-code/params"
@@ -95,8 +94,6 @@ type Truechain struct {
 	bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
 
 	APIBackend *TrueAPIBackend
-
-	miner     *miner.Miner
 	gasPrice  *big.Int
 	etherbase common.Address
 
@@ -232,15 +229,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 		chainDb, etrue.agent); err != nil {
 		return nil, err
 	}
-
-	etrue.miner = miner.New(etrue, etrue.chainConfig, etrue.EventMux(), etrue.engine, etrue.election, etrue.Config().MineFruit, etrue.Config().NodeType, etrue.Config().RemoteMine, etrue.Config().Mine)
-	etrue.miner.SetExtra(makeExtraData(config.ExtraData))
-
-	committeeKey, err := crypto.ToECDSA(etrue.config.CommitteeKey)
-	if err == nil {
-		etrue.miner.SetElection(etrue.config.EnableElection, crypto.FromECDSAPub(&committeeKey.PublicKey))
-	}
-
 	etrue.APIBackend = &TrueAPIBackend{etrue, nil}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
@@ -329,11 +317,6 @@ func (s *Truechain) APIs() []rpc.API {
 			}, {
 				Namespace: name,
 				Version:   "1.0",
-				Service:   NewPublicMinerAPI(s),
-				Public:    true,
-			}, {
-				Namespace: name,
-				Version:   "1.0",
 				Service:   downloader.NewPublicDownloaderAPI(s.protocolManager.downloader, s.eventMux),
 				Public:    true,
 			}, {
@@ -347,11 +330,6 @@ func (s *Truechain) APIs() []rpc.API {
 	// Append all the local APIs and return
 	return append(apis, []rpc.API{
 		{
-			Namespace: "miner",
-			Version:   "1.0",
-			Service:   NewPrivateMinerAPI(s),
-			Public:    false,
-		}, {
 			Namespace: "admin",
 			Version:   "1.0",
 			Service:   NewPrivateAdminAPI(s),
@@ -410,43 +388,7 @@ func (s *Truechain) SetEtherbase(etherbase common.Address) {
 	s.etherbase = etherbase
 	s.agent.committeeNode.Coinbase = etherbase
 	s.lock.Unlock()
-
-	s.miner.SetEtherbase(etherbase)
 }
-
-func (s *Truechain) StartMining(local bool) error {
-	eb, err := s.Etherbase()
-	if err != nil {
-		log.Error("Cannot start mining without coinbase", "err", err)
-		return fmt.Errorf("coinbase missing: %v", err)
-	}
-
-	// snail chain not need clique
-	/*
-		if clique, ok := s.engine.(*clique.Clique); ok {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-			if wallet == nil || err != nil {
-				log.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			clique.Authorize(eb, wallet.SignHash)
-		}*/
-
-	if local {
-		// If local (CPU) mining is started, we can disable the transaction rejection
-		// mechanism introduced to speed sync times. CPU mining on mainnet is ludicrous
-		// so none will ever hit this path, whereas marking sync done on CPU mining
-		// will ensure that private networks work in single miner mode too.
-		atomic.StoreUint32(&s.protocolManager.acceptFruits, 1)
-
-	}
-	go s.miner.Start(eb)
-	return nil
-}
-
-func (s *Truechain) StopMining()                       { s.miner.Stop() }
-func (s *Truechain) IsMining() bool                    { return s.miner.Mining() }
-func (s *Truechain) Miner() *miner.Miner               { return s.miner }
 func (s *Truechain) PbftAgent() *PbftAgent             { return s.agent }
 func (s *Truechain) AccountManager() *accounts.Manager { return s.accountManager }
 func (s *Truechain) BlockChain() *core.BlockChain      { return s.blockchain }
@@ -533,7 +475,6 @@ func (s *Truechain) Stop() error {
 	}
 	s.txPool.Stop()
 	s.snailPool.Stop()
-	s.miner.Stop()
 	s.eventMux.Stop()
 
 	s.chainDb.Close()

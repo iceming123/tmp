@@ -866,10 +866,8 @@ func (s *Service) reportPending(conn *websocket.Conn) error {
 type nodeStats struct {
 	Active            bool `json:"active"`
 	Syncing           bool `json:"syncing"`
-	Mining            bool `json:"mining"`
 	IsCommitteeMember bool `json:"isCommitteeMember"`
 	IsLeader          bool `json:"isLeader"`
-	Hashrate          int  `json:"hashrate"`
 	Peers             int  `json:"peers"`
 	GasPrice          int  `json:"gasPrice"`
 	Uptime            int  `json:"uptime"`
@@ -880,7 +878,6 @@ type nodeStats struct {
 func (s *Service) reportStats(conn *websocket.Conn) error {
 	// Gather the syncing and mining infos from the local miner instance
 	var (
-		mining            bool
 		isCommitteeMember bool
 		isLeader          bool
 		hashrate          int
@@ -888,9 +885,6 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 		gasprice          int
 	)
 	if s.etrue != nil {
-		mining = s.etrue.Miner().Mining()
-		hashrate = int(s.etrue.Miner().HashRate())
-
 		sync := s.etrue.Downloader().Progress()
 		syncing = s.etrue.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestFastBlock
 
@@ -907,8 +901,6 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 	log.Trace("Sending node details to etruestats")
 	nodeStats := &nodeStats{
 		Active:            true,
-		Mining:            mining,
-		Hashrate:          hashrate,
 		Peers:             s.server.PeerCount(),
 		GasPrice:          gasprice,
 		Syncing:           syncing,

@@ -324,8 +324,5 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 		// Set the gas price to the limits from the CLI and start mining
 		truechain.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
-		if err := truechain.StartMining(true); err != nil {
-			utils.Fatalf("Failed to start mining: %v", err)
-		}
 	}
 }
