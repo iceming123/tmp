@@ -104,8 +104,6 @@ type Engine interface {
 	// the input slice).
 	VerifyHeaders(chain ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error)
 
-	ValidateRewarded(number uint64, hash common.Hash, fastchain ChainReader) error
-
 	VerifySigns(fastnumber *big.Int, fastHash common.Hash, signs []*types.PbftSign) error
 
 	VerifySwitchInfo(fastnumber *big.Int, info []*types.CommitteeMember) error
@@ -211,45 +209,10 @@ func updateForkedPoint(forkedID, fastNumber *big.Int, config *params.ChainConfig
 	}
 }
 
-func InitTIP8(config *params.ChainConfig, reader SnailChainReader) {
-	if params.DposForkPoint == 0 {
-		params.DposForkPoint = config.TIP7.FastNumber.Uint64() * 10
-	}
-	if params.DposForkPoint < 100000 {
-		params.DposForkPoint = 100000
-	}
-	
-	eid := config.TIP8.CID
-	if config.TIP8.CID.Sign() >= 0 {
-		params.FirstNewEpochID = new(big.Int).Add(eid, common.Big1).Uint64()
-	} else {
-		params.FirstNewEpochID = common.Big1.Uint64()
-		params.DposForkPoint = 0
-		config.TIP8.FastNumber = new(big.Int).Set(common.Big0)
-		return
-	}
-
-	switchCheckNumber := new(big.Int).Mul(new(big.Int).Add(eid, common.Big1), params.ElectionPeriodNumber)
-	curSnailNumber := reader.CurrentHeader().Number
-	if curSnailNumber.Cmp(switchCheckNumber) >= 0 {
-		snailEndNumber := new(big.Int).Sub(switchCheckNumber, params.SnailConfirmInterval)
-		header := reader.GetHeaderByNumber(snailEndNumber.Uint64())
-		if header == nil {
-			log.Error("InitTIP8 GetHeaderByNumber failed.", "switchCheckNumber", switchCheckNumber, "curSnailNumber", curSnailNumber, "Epochid", eid)
-			return
-		}
-		block := reader.GetBlock(header.Hash(), snailEndNumber.Uint64())
-		if block == nil {
-			log.Error("InitTIP8 GetBlock failed.", "switchCheckNumber", switchCheckNumber, "curSnailNumber", curSnailNumber, "Epochid", eid)
-			return
-		}
-		fruits := block.Fruits()
-		lastFruitNumber := fruits[len(fruits)-1].FastNumber()
-		fisrtNum := new(big.Int).Add(lastFruitNumber, params.ElectionSwitchoverNumber)
-		params.DposForkPoint = fisrtNum.Uint64()
-		config.TIP8.FastNumber = new(big.Int).Add(fisrtNum, common.Big1)
-		log.Info("InitTIP8", "switchCheckNumber", switchCheckNumber, "TIP8.FastNumber", config.TIP8.FastNumber, "FirstNewEpochID", params.FirstNewEpochID)
-	}
+func InitTIP8(config *params.ChainConfig) {
+	params.FirstNewEpochID = common.Big1.Uint64()
+	params.DposForkPoint = 0
+	config.TIP8.FastNumber = new(big.Int).Set(common.Big0)
 }
 func makeImpawInitState(config *params.ChainConfig,state *state.StateDB,fastNumber *big.Int) bool {
 	if config.TIP7.FastNumber.Cmp(fastNumber) == 0 {

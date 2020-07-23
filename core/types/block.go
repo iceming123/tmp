@@ -566,8 +566,6 @@ func (self snailBlockSorter) Less(i, j int) bool {
 	return self.by(self.snailBlocks[i], self.snailBlocks[j])
 }
 
-func SnailNumber(b1, b2 *SnailBlock) bool { return b1.header.Number.Cmp(b2.header.Number) < 0 }
-
 func FruitNumber(b1, b2 *SnailBlock) bool { return b1.header.FastNumber.Cmp(b2.header.FastNumber) < 0 }
 
 ////////////////////////////////////////////////////////////////////////////////

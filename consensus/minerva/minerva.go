@@ -143,7 +143,6 @@ const (
 // Config are the configuration parameters of the minerva.
 type Config struct {
 	PowMode        Mode
-	Tip9           uint64
 }
 
 // Minerva consensus

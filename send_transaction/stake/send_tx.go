@@ -391,11 +391,6 @@ func startDelegateTx(conn *etrueclient.Client, diff, number uint64, query bool) 
 						d := delegateReward{}
 						d.txhash = tx
 						d.delegateNumber = number
-						sheader, err := conn.SnailHeaderByNumber(context.Background(), nil)
-						if err != nil {
-							printError("get snail block error", err)
-						}
-						d.delegateSnail = sheader.Number.ToInt().Uint64()
 						rewardTx[from] = &d
 					}
 
@@ -677,17 +672,7 @@ func querySendTx(conn *etrueclient.Client, number uint64) {
 		}
 		if !isPending {
 			if queryTx(conn, v.txhash, false, false, false) {
-				sheader, err := conn.SnailHeaderByNumber(context.Background(), nil)
-				if err != nil {
-					printError("get snail block error", err)
-				}
-				if sheader.Number.ToInt().Uint64() > v.delegateSnail {
-					find, snailNumber := queryRewardInfo(conn, sheader.Number.ToInt().Uint64(), addr)
-					if find {
-						fmt.Println("Reward Snail Number", snailNumber, " fast ", number, " start fast", v.delegateNumber, " start snail", v.delegateSnail)
-						delete(withdrawTx, addr)
-					}
-				}
+				
 			}
 		}
 	}

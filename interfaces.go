@@ -86,7 +86,6 @@ type SyncProgress struct {
 	HighestFastBlock  uint64 // Highest alleged block number in the chain
 
 	StartingSnailBlock uint64 // Block number where sync began
-	CurrentSnailBlock  uint64 // Current block number where sync is at
 	HighestSnailBlock  uint64 // Highest alleged block number in the chain
 	PulledStates       uint64 // Number of state trie entries already downloaded
 	KnownStates        uint64 // Total number of state trie entries known about

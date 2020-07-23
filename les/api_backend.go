@@ -52,18 +52,9 @@ func (b *LesApiBackend) CurrentBlock() *types.Block {
 	return types.NewBlockWithHeader(b.etrue.BlockChain().CurrentHeader())
 }
 
-func (b *LesApiBackend) CurrentSnailBlock() *types.SnailBlock {
-	return nil
-}
-
 func (b *LesApiBackend) SetHead(number uint64) {
 	b.etrue.protocolManager.downloader.Cancel()
 	b.etrue.fblockchain.SetHead(number)
-}
-
-func (b *LesApiBackend) SetSnailHead(number uint64) {
-	b.etrue.protocolManager.downloader.Cancel()
-	b.etrue.blockchain.SetHead(number)
 }
 
 func (b *LesApiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
@@ -77,27 +68,12 @@ func (b *LesApiBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 	return b.etrue.fblockchain.GetHeaderByHash(hash), nil
 }
 
-func (b *LesApiBackend) SnailHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.SnailHeader, error) {
-	if blockNr == rpc.LatestBlockNumber || blockNr == rpc.PendingBlockNumber {
-		return b.etrue.blockchain.CurrentHeader(), nil
-	}
-	return b.etrue.blockchain.GetHeaderByNumberOdr(ctx, uint64(blockNr))
-}
-
 func (b *LesApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	header, err := b.HeaderByNumber(ctx, blockNr)
 	if header == nil || err != nil {
 		return nil, err
 	}
 	return b.GetBlock(ctx, header.Hash())
-}
-
-func (b *LesApiBackend) SnailBlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.SnailBlock, error) {
-	header, err := b.SnailHeaderByNumber(ctx, blockNr)
-	if header == nil || err != nil {
-		return nil, err
-	}
-	return b.GetSnailBlock(ctx, header.Hash())
 }
 
 func (b *LesApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
@@ -111,15 +87,6 @@ func (b *LesApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.
 func (b *LesApiBackend) GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error) {
 	return b.etrue.fblockchain.GetBlockByHash(ctx, blockHash)
 }
-
-func (b *LesApiBackend) GetFruit(ctx context.Context, fastblockHash common.Hash) (*types.SnailBlock, error) {
-	return b.etrue.blockchain.GetFruit(ctx, fastblockHash)
-}
-
-func (b *LesApiBackend) GetSnailBlock(ctx context.Context, blockHash common.Hash) (*types.SnailBlock, error) {
-	return b.etrue.blockchain.GetBlockByHash(ctx, blockHash)
-}
-
 func (b *LesApiBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	if number := rawdb.ReadHeaderNumber(b.etrue.chainDb, hash); number != nil {
 		return fast.GetBlockReceipts(ctx, b.etrue.odr, hash, *number)
@@ -217,27 +184,12 @@ func (b *LesApiBackend) GetCurrentCommitteeNumber() *big.Int {
 	return nil
 }
 
-func (b *LesApiBackend) GetBalanceChangeBySnailNumber(snailNumber rpc.BlockNumber) *types.BalanceChangeContent {
-	return nil
-}
-
 func (b *LesApiBackend) GetStateChangeByFastNumber(fastNumber rpc.BlockNumber) *types.BlockBalance {
 	return nil
 }
 
 func (b *LesApiBackend) GetChainRewardContent(blockNr rpc.BlockNumber) *types.ChainReward {
 	return nil
-}
-func (b *LesApiBackend) SnailPoolContent() []*types.SnailBlock {
-	return nil
-}
-
-func (b *LesApiBackend) SnailPoolInspect() []*types.SnailBlock {
-	return nil
-}
-
-func (b *LesApiBackend) SnailPoolStats() (pending int, unVerified int) {
-	return 0, 0
 }
 
 func (b *LesApiBackend) Downloader() *downloader.Downloader {

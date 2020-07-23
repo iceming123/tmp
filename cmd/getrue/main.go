@@ -61,10 +61,6 @@ var (
 		utils.TxPoolAccountQueueFlag,
 		utils.TxPoolGlobalQueueFlag,
 		utils.TxPoolLifetimeFlag,
-
-		utils.SnailPoolJournalFlag,
-		utils.SnailPoolRejournalFlag,
-		utils.SnailPoolFruitCountFlag,
 		utils.SyncModeFlag,
 
 		utils.SingleNodeFlag,

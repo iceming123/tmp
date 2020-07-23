@@ -53,22 +53,10 @@ func (b *TrueAPIBackend) ChainConfig() *params.ChainConfig {
 func (b *TrueAPIBackend) CurrentBlock() *types.Block {
 	return b.etrue.blockchain.CurrentBlock()
 }
-
-// CurrentSnailBlock return the Snail chain current Block
-func (b *TrueAPIBackend) CurrentSnailBlock() *types.SnailBlock {
-	return b.etrue.snailblockchain.CurrentBlock()
-}
-
 // SetHead Set the newest position of Fast Chain, that will reset the fast blockchain comment
 func (b *TrueAPIBackend) SetHead(number uint64) {
 	b.etrue.protocolManager.downloader.Cancel()
 	b.etrue.blockchain.SetHead(number)
-}
-
-// SetSnailHead Set the newest position of snail chain
-func (b *TrueAPIBackend) SetSnailHead(number uint64) {
-	b.etrue.protocolManager.downloader.Cancel()
-	b.etrue.snailblockchain.SetHead(number)
 }
 
 // HeaderByNumber returns Header of fast chain by the number
@@ -91,21 +79,6 @@ func (b *TrueAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*t
 	return b.etrue.blockchain.GetHeaderByHash(hash), nil
 }
 
-// SnailHeaderByNumber returns Header of snail chain by the number
-// rpc.PendingBlockNumber == "pending"; rpc.LatestBlockNumber == "latest" ; rpc.LatestBlockNumber == "earliest"
-func (b *TrueAPIBackend) SnailHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.SnailHeader, error) {
-	// Pending block is only known by the miner
-	if blockNr == rpc.PendingBlockNumber {
-		block := b.etrue.miner.PendingSnailBlock()
-		return block.Header(), nil
-	}
-	// Otherwise resolve and return the block
-	if blockNr == rpc.LatestBlockNumber {
-		return b.etrue.snailblockchain.CurrentBlock().Header(), nil
-	}
-	return b.etrue.snailblockchain.GetHeaderByNumber(uint64(blockNr)), nil
-}
-
 // BlockByNumber returns block of fast chain by the number
 func (b *TrueAPIBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Only snailchain has miner, also return current block here for fastchain
@@ -118,20 +91,6 @@ func (b *TrueAPIBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNum
 		return b.etrue.blockchain.CurrentBlock(), nil
 	}
 	return b.etrue.blockchain.GetBlockByNumber(uint64(blockNr)), nil
-}
-
-// SnailBlockByNumber returns block of snial chain by the number
-func (b *TrueAPIBackend) SnailBlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.SnailBlock, error) {
-	// Pending block is only known by the miner
-	if blockNr == rpc.PendingBlockNumber {
-		block := b.etrue.miner.PendingSnailBlock()
-		return block, nil
-	}
-	// Otherwise resolve and return the block
-	if blockNr == rpc.LatestBlockNumber {
-		return b.etrue.snailblockchain.CurrentBlock(), nil
-	}
-	return b.etrue.snailblockchain.GetBlockByNumber(uint64(blockNr)), nil
 }
 
 // StateAndHeaderByNumber returns the state of block by the number
@@ -154,16 +113,6 @@ func (b *TrueAPIBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc
 // GetBlock returns the block by the block's hash
 func (b *TrueAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return b.etrue.blockchain.GetBlockByHash(hash), nil
-}
-
-// GetSnailBlock returns the snail block by the block's hash
-func (b *TrueAPIBackend) GetSnailBlock(ctx context.Context, hash common.Hash) (*types.SnailBlock, error) {
-	return b.etrue.snailblockchain.GetBlockByHash(hash), nil
-}
-
-// GetFruit returns the fruit by the block's hash
-func (b *TrueAPIBackend) GetFruit(ctx context.Context, fastblockHash common.Hash) (*types.SnailBlock, error) {
-	return b.etrue.snailblockchain.GetFruit(fastblockHash), nil
 }
 
 // GetReceipts returns the Receipt details by txhash
@@ -189,11 +138,6 @@ func (b *TrueAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*ty
 		logs[i] = receipt.Logs
 	}
 	return logs, nil
-}
-
-// GetTd returns the total diffcult with block height by blockhash
-func (b *TrueAPIBackend) GetTd(blockHash common.Hash) *big.Int {
-	return b.etrue.snailblockchain.GetTdByHash(blockHash)
 }
 
 // GetEVM returns the EVM
@@ -246,43 +190,6 @@ func (b *TrueAPIBackend) GetChainRewardContent(blockNr rpc.BlockNumber) *types.C
 // GetStateChangeByFastNumber returns the Committee info by committee number
 func (b *TrueAPIBackend) GetStateChangeByFastNumber(fastNumber rpc.BlockNumber) *types.BlockBalance {
 	return b.etrue.blockchain.GetBalanceInfos(uint64(fastNumber))
-}
-
-func (b *TrueAPIBackend) GetBalanceChangeBySnailNumber(snailNumber rpc.BlockNumber) *types.BalanceChangeContent {
-	fmt.Println("go into GetBalanceChangeBySnailNumber")
-	var sBlock = b.etrue.SnailBlockChain().GetBlockByNumber(uint64(snailNumber))
-	state, _ := b.etrue.BlockChain().State()
-	var (
-		addrWithBalance          = make(map[common.Address]*big.Int)
-		committeeAddrWithBalance = make(map[common.Address]*big.Int)
-		blockFruits              = sBlock.Body().Fruits
-		blockFruitsLen           = big.NewInt(int64(len(blockFruits)))
-	)
-	if blockFruitsLen.Uint64() == 0 {
-		return nil
-	}
-	//snailBlock miner's award
-	var balance = state.GetBalance(sBlock.Coinbase())
-	addrWithBalance[sBlock.Coinbase()] = balance
-
-	for _, fruit := range blockFruits {
-		if addrWithBalance[fruit.Coinbase()] == nil {
-			addrWithBalance[fruit.Coinbase()] = state.GetBalance(fruit.Coinbase())
-		}
-		var committeeMembers = b.etrue.election.GetCommittee(fruit.FastNumber())
-
-		for _, cm := range committeeMembers {
-			if committeeAddrWithBalance[cm.Coinbase] == nil {
-				committeeAddrWithBalance[cm.Coinbase] = state.GetBalance(cm.Coinbase)
-			}
-		}
-	}
-	for addr, balance := range committeeAddrWithBalance {
-		if addrWithBalance[addr] == nil {
-			addrWithBalance[addr] = balance
-		}
-	}
-	return &types.BalanceChangeContent{addrWithBalance}
 }
 
 func (b *TrueAPIBackend) GetCommittee(number rpc.BlockNumber) (map[string]interface{}, error) {
@@ -366,21 +273,6 @@ func (b *TrueAPIBackend) EventMux() *event.TypeMux {
 // AccountManager returns Account Manager
 func (b *TrueAPIBackend) AccountManager() *accounts.Manager {
 	return b.etrue.AccountManager()
-}
-
-// SnailPoolContent returns snail pool content
-func (b *TrueAPIBackend) SnailPoolContent() []*types.SnailBlock {
-	return b.etrue.SnailPool().Content()
-}
-
-// SnailPoolInspect returns snail pool Inspect
-func (b *TrueAPIBackend) SnailPoolInspect() []*types.SnailBlock {
-	return b.etrue.SnailPool().Inspect()
-}
-
-// SnailPoolStats returns snail pool Stats
-func (b *TrueAPIBackend) SnailPoolStats() (pending int, unVerified int) {
-	return b.etrue.SnailPool().Stats()
 }
 
 // BloomStatus returns Bloom Status

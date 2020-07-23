@@ -153,19 +153,3 @@ func GetFruitBody(ctx context.Context, odr OdrBackend, hash common.Hash, number 
 	}
 	return body, nil
 }
-
-// GetFruit retrieves an entire fruit corresponding to the hash, assembling it
-// back from the stored header and body.
-func GetFruit(ctx context.Context, odr OdrBackend, hash common.Hash, number uint64) (*types.SnailBlock, error) {
-	// FastRetrieve the block header and body contents
-	header := rawdb.ReadHeader(odr.Database(), hash, number)
-	if header == nil {
-		return nil, ErrNoHeader
-	}
-	body, err := GetFruitBody(ctx, odr, hash, number)
-	if err != nil {
-		return nil, err
-	}
-	// Reassemble the block and return
-	return types.NewSnailBlockWithHeader(header).WithBody(body.Fruits, nil), nil
-}

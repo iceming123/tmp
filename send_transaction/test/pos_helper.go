@@ -235,10 +235,6 @@ func newTestPOSManager(sBlocks int, executableTx func(uint64, *core.BlockGen, *c
 
 			header := gen.GetHeader()
 			stateDB := gen.GetStateDB()
-			switch i {
-			case 0:
-				rewardSnailBlock(snailChainTest, blockchain, header)
-			}
 			//if gspec.Config.TIP8.FastNumber != nil && gspec.Config.TIP8.FastNumber.Sign() > 0 {
 			//	executableTx(header.Number.Uint64()-gspec.Config.TIP8.FastNumber.Uint64()+9600, gen, blockchain, header, stateDB)
 			//}
@@ -255,7 +251,7 @@ func newTestPOSManager(sBlocks int, executableTx func(uint64, *core.BlockGen, *c
 		parentSnail = snailChainTest.GetBlocksFromNumber(0)
 	}
 
-	consensus.InitTIP8(gspec.Config, snailChainTest)
+	consensus.InitTIP8(gspec.Config)
 	fmt.Println("first ", types.GetFirstEpoch())
 	// Create the pos manager with the base fields
 	manager := &POSManager{
@@ -272,22 +268,6 @@ func newTestPOSManager(sBlocks int, executableTx func(uint64, *core.BlockGen, *c
 	manager.GetBalance = GetBalance
 	return manager
 }
-
-//generate rewardSnailHegiht
-func rewardSnailBlock(chain consensus.SnailChainReader, fastChain *core.BlockChain, header *types.Header) {
-	rewardSnailHegiht := fastChain.NextSnailNumberReward()
-	space := new(big.Int).Sub(chain.CurrentHeader().Number, rewardSnailHegiht).Int64()
-	if space >= params.SnailRewardInterval.Int64() {
-		header.SnailNumber = rewardSnailHegiht
-		sb := chain.GetHeaderByNumber(rewardSnailHegiht.Uint64())
-		if sb != nil {
-			header.SnailHash = sb.Hash()
-		} else {
-			log.Error("cannot find snailBlock by rewardSnailHegiht.", "snailHeight", rewardSnailHegiht.Uint64())
-		}
-	}
-}
-
 func sendDepositTransaction(height uint64, gen *core.BlockGen, from common.Address, value *big.Int, priKey *ecdsa.PrivateKey, signer types.TIP1Signer, state *state.StateDB, blockchain *core.BlockChain, abiStaking abi.ABI, txPool txPool) {
 	if height == 40 {
 		nonce, _ := getNonce(gen, from, state, "sendDepositTransaction", txPool)

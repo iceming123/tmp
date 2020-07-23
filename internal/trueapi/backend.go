@@ -47,15 +47,10 @@ type Backend interface {
 
 	// BlockChain API
 	SetHead(number uint64)
-	SetSnailHead(number uint64)
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error)
-	SnailHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.SnailHeader, error)
 	BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error)
-	SnailBlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.SnailBlock, error)
-	GetFruit(ctx context.Context, fastblockHash common.Hash) (*types.SnailBlock, error)
 	StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error)
-	GetSnailBlock(ctx context.Context, blockHash common.Hash) (*types.SnailBlock, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetTd(blockHash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error)
@@ -67,7 +62,6 @@ type Backend interface {
 	GetCurrentCommitteeNumber() *big.Int
 
 	GetStateChangeByFastNumber(fastNumber rpc.BlockNumber) *types.BlockBalance
-	GetBalanceChangeBySnailNumber(snailNumber rpc.BlockNumber) *types.BalanceChangeContent
 	GetChainRewardContent(blockNr rpc.BlockNumber) *types.ChainReward
 
 	// TxPool API
@@ -81,12 +75,6 @@ type Backend interface {
 
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block
-	CurrentSnailBlock() *types.SnailBlock
-
-	// SnailPool API
-	SnailPoolContent() []*types.SnailBlock
-	SnailPoolInspect() []*types.SnailBlock
-	SnailPoolStats() (pending int, unVerified int)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
@@ -124,12 +112,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicTxPoolAPI(apiBackend),
 			Public:    true,
-		}, {
-			Namespace: "fruitpool",
-			Version:   "1.0",
-			Service:   NewPublicFruitPoolAPI(apiBackend),
-			Public:    true,
-		}, {
+		},{
 			Namespace: "debug",
 			Version:   "1.0",
 			Service:   NewPublicDebugAPI(apiBackend),

@@ -291,23 +291,6 @@ func (lc *LightChain) GetBlockByHash(ctx context.Context, hash common.Hash) (*ty
 	return lc.GetBlock(ctx, hash, *number)
 }
 
-// GetFruit retrieves a fruit from the database by FastHash
-func (lc *LightChain) GetFruit(ctx context.Context, hash common.Hash) (*types.SnailBlock, error) {
-
-	// Short circuit if the block's already in the cache, retrieve otherwise
-	if fruit, ok := lc.fruitCache.Get(hash); ok {
-		return fruit.(*types.SnailBlock), nil
-	}
-
-	fruit, err := GetFruit(ctx, lc.odr, hash, lc.fastchain.GetHeaderByHash(hash).Number.Uint64())
-	if err != nil {
-		return nil, err
-	}
-	// Cache the found block for next time and return
-	lc.fruitCache.Add(fruit.Hash(), fruit)
-	return fruit, nil
-}
-
 // GetBlockByNumber retrieves a block from the database or ODR service by
 // number, caching it (associated with its hash) if found.
 func (lc *LightChain) GetBlockByNumber(ctx context.Context, number uint64) (*types.SnailBlock, error) {

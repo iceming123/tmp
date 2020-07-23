@@ -186,15 +186,6 @@ func (m *Minerva) VerifyHeaders(chain consensus.ChainReader, headers []*types.He
 	return abort, errorsOut
 }
 
-//ValidateRewarded verify whether the block has been rewarded.
-func (m *Minerva) ValidateRewarded(number uint64, hash common.Hash, fastchain consensus.ChainReader) error {
-	if br := fastchain.GetBlockReward(number); br != nil && br.SnailHash != hash {
-		log.Info("err reward snail block", "number", number, "reward hash", br.SnailHash, "this snail hash", hash, "fast number", br.FastNumber, "fast hash", br.FastHash)
-		return ErrRewardedBlock
-	}
-	return nil
-}
-
 func (m *Minerva) verifyHeaderWorker(chain consensus.ChainReader, headers []*types.Header,
 	seals []bool, index int) error {
 	var parent *types.Header

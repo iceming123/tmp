@@ -5500,14 +5500,6 @@ require = (function e(t, n, r) {
                 params: 1,
                 inputFormatter: [formatters.inputDefaultBlockNumberFormatter]
             });
-
-            var getSnailRewardContent = new Method({
-                name: 'getSnailRewardContent',
-                call: 'etrue_getSnailRewardContent',
-                params: 1,
-                inputFormatter: [formatters.inputDefaultBlockNumberFormatter]
-            });
-
             var getChainRewardContent = new Method({
                 name: 'getChainRewardContent',
                 call: 'etrue_getChainRewardContent',
@@ -5515,44 +5507,9 @@ require = (function e(t, n, r) {
                 inputFormatter: [formatters.inputDefaultBlockNumberFormatter,formatters.inputAddressFormatter]
             });
 
-            var getSnail = new Method({
-                name: 'getSnail',
-                call: snailBlockCall,
-                params: 2,
-                inputFormatter: [formatters.inputBlockNumberFormatter, function (val) {
-                    return !!val;
-                }],
-                outputFormatter: formatters.outputSnailFormatter
-            });
-
-            var getFruit = new Method({
-                name: 'getFruit',
-                call: fruitCall,
-                params: 2,
-                inputFormatter: [formatters.inputBlockNumberFormatter, function (val) {
-                    return !!val;
-                }]
-                // outputFormatter: formatters.outputSnailFormatter
-            });
-
             var getStateChangeByFastNumber = new Method({
                 name: 'getStateChangeByFastNumber',
                 call: 'etrue_getStateChangeByFastNumber',
-                params: 1,
-                inputFormatter: [formatters.inputDefaultBlockNumberFormatter]
-            });
-
-            var getSnailHashByNumber = new Method({
-                name: 'getSnailHashByNumber',
-                call: 'etrue_getSnailHashByNumber',
-                params: 1,
-                inputFormatter: [formatters.inputBlockNumberFormatter]
-            });
-
-
-            var getBalanceChangeBySnailNumber = new Method({
-                name: 'getBalanceChangeBySnailNumber',
-                call: 'etrue_getBalanceChangeBySnailNumber',
                 params: 1,
                 inputFormatter: [formatters.inputDefaultBlockNumberFormatter]
             });
@@ -5606,14 +5563,6 @@ require = (function e(t, n, r) {
             var getTransactionFromBlock = new Method({
                 name: 'getTransactionFromBlock',
                 call: transactionFromBlockCall,
-                params: 2,
-                inputFormatter: [formatters.inputBlockNumberFormatter, utils.toHex],
-                outputFormatter: formatters.outputTransactionFormatter
-            });
-
-            var getFruitFromBlock = new Method({
-                name: 'getFruitFromBlock',
-                call: fruitFromBlockCall,
                 params: 2,
                 inputFormatter: [formatters.inputBlockNumberFormatter, utils.toHex],
                 outputFormatter: formatters.outputTransactionFormatter
@@ -5732,13 +5681,8 @@ require = (function e(t, n, r) {
                 getCode,
                 getBlock,
                 getRewardBlock,
-                getSnailRewardContent,
                 getChainRewardContent,
-                getSnail,
-                getFruit,
                 getStateChangeByFastNumber,
-                getSnailHashByNumber,
-                getBalanceChangeBySnailNumber,
                 getUncle,
                 getCompilers,
                 getBlockTransactionCount,
@@ -5746,7 +5690,6 @@ require = (function e(t, n, r) {
                 getBlockUncleCount,
                 getTransaction,
                 getTransactionFromBlock,
-                getFruitFromBlock,
                 getTransactionReceipt,
                 getTransactionCount,
                 call,
@@ -5816,10 +5759,6 @@ require = (function e(t, n, r) {
                     name: 'snailBlockNumber',
                     getter: 'etrue_snailBlockNumber',
                     outputFormatter: utils.toDecimal
-                }),
-                new Property({
-                    name: 'rewardSnailBlock',
-                    getter: 'etrue_rewardSnailBlock'
                 }),
                 new Property({
                     name: 'fruitNumber',

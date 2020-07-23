@@ -49,35 +49,3 @@ type Validator interface {
 type Processor interface {
 	Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64,*types.ChainReward, error)
 }
-
-// SnailChain is an interface which defines the standard for snail block.
-type SnailChain interface {
-	// Config retrieves the blockchain's chain configuration.
-	Config() *params.ChainConfig
-
-	// CurrentHeader retrieves the current header from the local chain.
-	CurrentHeader() *types.SnailHeader
-
-	// GetHeader retrieves a block header from the database by hash and number.
-	GetHeader(hash common.Hash, number uint64) *types.SnailHeader
-
-	// GetHeaderByNumber retrieves a block header from the database by number.
-	GetHeaderByNumber(number uint64) *types.SnailHeader
-
-	// GetHeaderByHash retrieves a block header from the database by its hash.
-	GetHeaderByHash(hash common.Hash) *types.SnailHeader
-
-	// CurrentBlock retrieves the current block from the local chain.
-	CurrentBlock() *types.SnailBlock
-
-	// GetBlock retrieves a block from the database by hash and number.
-	GetBlock(hash common.Hash, number uint64) *types.SnailBlock
-
-	// GetBlockByNumber retrieves a snail block from the database by number.
-	GetBlockByNumber(number uint64) *types.SnailBlock
-
-	// GetBlockByHash retrieves a snail block from the database by its hash.
-	GetBlockByHash(hash common.Hash) *types.SnailBlock
-
-	SubscribeChainHeadEvent(ch chan<- types.SnailChainHeadEvent) event.Subscription
-}

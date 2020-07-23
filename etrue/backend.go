@@ -72,14 +72,10 @@ type Truechain struct {
 
 	// Handlers
 	txPool *core.TxPool
-
-	snailPool *chain.SnailPool
-
 	agent    *PbftAgent
 	election *elect.Election
 
 	blockchain      *core.BlockChain
-	snailblockchain *chain.SnailBlockChain
 	protocolManager *ProtocolManager
 	lesServer       LesServer
 
@@ -175,11 +171,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 		return nil, err
 	}
 
-	etrue.snailblockchain, err = chain.NewSnailBlockChain(chainDb, etrue.chainConfig, etrue.engine, etrue.blockchain)
-	if err != nil {
-		return nil, err
-	}
-
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
@@ -187,19 +178,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
 	}
 
-	//  rewind snail if case of incompatible config
-	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
-		log.Warn("Rewinding snail chain to upgrade configuration", "err", compat)
-		etrue.snailblockchain.SetHead(compat.RewindTo)
-		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
-	}
-
 	etrue.bloomIndexer.Start(etrue.blockchain)
-
-	consensus.InitTIP8(chainConfig, etrue.snailblockchain)
-	//sv := chain.NewBlockValidator(etrue.chainConfig, etrue.blockchain, etrue.snailblockchain, etrue.engine)
-	//etrue.snailblockchain.SetValidator(sv)
-
+	consensus.InitTIP8(chainConfig)
 	if config.TxPool.Journal != "" {
 		config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	}
@@ -209,13 +189,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 	}
 
 	etrue.txPool = core.NewTxPool(config.TxPool, etrue.chainConfig, etrue.blockchain)
-
-	//etrue.snailPool = chain.NewSnailPool(config.SnailPool, etrue.blockchain, etrue.snailblockchain, etrue.engine, sv)
-	etrue.snailPool = chain.NewSnailPool(config.SnailPool, etrue.blockchain, etrue.snailblockchain, etrue.engine)
-
 	etrue.election = elect.NewElection(etrue.chainConfig, etrue.blockchain, etrue.config)
-
-	//etrue.snailblockchain.Validator().SetElection(etrue.election, etrue.blockchain)
 
 	etrue.engine.SetElection(etrue.election)
 	etrue.election.SetEngine(etrue.engine)
@@ -224,9 +198,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 	etrue.agent = NewPbftAgent(etrue, etrue.chainConfig, etrue.engine, etrue.election, config.MinerGasFloor, config.MinerGasCeil)
 	if etrue.protocolManager, err = NewProtocolManager(
 		etrue.chainConfig, config.SyncMode, config.NetworkId,
-		etrue.eventMux, etrue.txPool, etrue.snailPool, etrue.engine,
-		etrue.blockchain, etrue.snailblockchain,
-		chainDb, etrue.agent); err != nil {
+		etrue.eventMux, etrue.txPool, etrue.engine,
+		etrue.blockchain, chainDb, etrue.agent); err != nil {
 		return nil, err
 	}
 	etrue.APIBackend = &TrueAPIBackend{etrue, nil}
@@ -289,9 +262,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *ethash.Config, chai
 		log.Warn("Ethash used in shared mode")
 		return ethash.NewShared()
 	default:
-		engine := ethash.New(ethash.Config{
-			Tip9:           chainConfig.TIP9.SnailNumber.Uint64(),
-		})
+		engine := ethash.New(ethash.Config{})
 		engine.SetThreads(-1) // Disable CPU mining
 		return engine
 	}
@@ -395,8 +366,6 @@ func (s *Truechain) BlockChain() *core.BlockChain      { return s.blockchain }
 func (s *Truechain) Config() *Config                   { return s.config }
 func (s *Truechain) TxPool() *core.TxPool                    { return s.txPool }
 
-func (s *Truechain) SnailPool() *chain.SnailPool { return s.snailPool }
-
 func (s *Truechain) EventMux() *event.TypeMux           { return s.eventMux }
 func (s *Truechain) Engine() consensus.Engine           { return s.engine }
 func (s *Truechain) ChainDb() etruedb.Database          { return s.chainDb }
@@ -449,10 +418,6 @@ func (s *Truechain) Start(srvr *p2p.Server) error {
 	s.agent.Start()
 
 	s.election.Start()
-
-	//start fruit journal
-	s.snailPool.Start()
-
 	// Start the networking layer and the light server if requested
 	s.protocolManager.Start2(maxPeers)
 	if s.lesServer != nil {
@@ -468,13 +433,11 @@ func (s *Truechain) Stop() error {
 	s.stopPbftServer()
 	s.bloomIndexer.Close()
 	s.blockchain.Stop()
-	s.snailblockchain.Stop()
 	s.protocolManager.Stop()
 	if s.lesServer != nil {
 		s.lesServer.Stop()
 	}
 	s.txPool.Stop()
-	s.snailPool.Stop()
 	s.eventMux.Stop()
 
 	s.chainDb.Close()

@@ -304,22 +304,6 @@ var (
 		Usage: "Maximum amount of time non-executable transaction are queued",
 		Value: etrue.DefaultConfig.TxPool.Lifetime,
 	}
-	//fruit pool settings
-	SnailPoolJournalFlag = cli.StringFlag{
-		Name:  "fruitpool.journal",
-		Usage: "Disk journal for local fruit to survive node restarts",
-		Value: snailchain.DefaultSnailPoolConfig.Journal,
-	}
-	SnailPoolRejournalFlag = cli.DurationFlag{
-		Name:  "fruitpool.rejournal",
-		Usage: "Time interval to regenerate the local fruit journal",
-		Value: snailchain.DefaultSnailPoolConfig.Rejournal,
-	}
-	SnailPoolFruitCountFlag = cli.Uint64Flag{
-		Name:  "fruitpool.count",
-		Usage: "Maximum amount of fruits in fruitPending",
-		Value: snailchain.DefaultSnailPoolConfig.FruitCount,
-	}
 	// Performance tuning settings
 	CacheFlag = cli.IntFlag{
 		Name:  "cache",
@@ -1053,19 +1037,6 @@ func setEthash(ctx *cli.Context, cfg *etrue.Config) {
 
 }
 
-func setSnailPool(ctx *cli.Context, cfg *snailchain.SnailPoolConfig) {
-	if ctx.GlobalIsSet(SnailPoolJournalFlag.Name) {
-		cfg.Journal = ctx.GlobalString(SnailPoolJournalFlag.Name)
-	}
-	if ctx.GlobalIsSet(SnailPoolRejournalFlag.Name) {
-		cfg.Rejournal = ctx.GlobalDuration(SnailPoolRejournalFlag.Name)
-	}
-	if ctx.GlobalIsSet(SnailPoolFruitCountFlag.Name) {
-		cfg.FruitCount = ctx.GlobalUint64(SnailPoolFruitCountFlag.Name)
-	}
-
-}
-
 // CheckExclusive verifies that only a single instance of the provided flags was
 // set by the user. Each flag might optionally be followed by a string type to
 // specialize it further.
@@ -1119,7 +1090,6 @@ func SetTruechainConfig(ctx *cli.Context, stack *node.Node, cfg *etrue.Config) {
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 	setEthash(ctx, cfg)
-	setSnailPool(ctx, &cfg.SnailPool)
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
@@ -1382,9 +1352,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (fchain *core.BlockChain, cha
 	// } else {
 	engine = minerva.NewFaker()
 	if !ctx.GlobalBool(FakePoWFlag.Name) {
-		engine = minerva.New(minerva.Config{
-			Tip9: 			config.TIP9.SnailNumber.Uint64(),
-		})
+		engine = minerva.New(minerva.Config{})
 	}
 	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)

@@ -449,10 +449,9 @@ func ReadBlockReward(db DatabaseReader, number uint64) *types.BlockReward {
 // WriteReward serializes a blockReward into the database.
 func WriteBlockReward(db DatabaseWriter, block *types.BlockReward) {
 
-	key := blockRewardKey(block.SnailNumber.Uint64())
+	key := blockRewardKey(block.FastNumber.Uint64())
 	// Write the encoded BlockReward
 	data, err := rlp.EncodeToBytes(block)
-	//log.Info("=========   size of BlockReward",len(data),"number of SnailNumber",block.SnailNumber)
 	if err != nil {
 		log.Crit("Failed to RLP encode BlockReward", "err", err)
 	}

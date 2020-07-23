@@ -142,21 +142,6 @@ func (hc *HeaderChain) WriteHeader(header *types.Header) (status WriteStatus, er
 	)
 
 	rawdb.WriteHeader(hc.chainDb, header)
-
-	if header.SnailNumber.Int64() != 0 {
-		//create BlockReward
-		br := &types.BlockReward{
-			FastHash:    header.Hash(),
-			FastNumber:  header.Number,
-			SnailHash:   header.SnailHash,
-			SnailNumber: header.SnailNumber,
-		}
-		//insert BlockReward to db
-		rawdb.WriteBlockReward(hc.chainDb, br)
-		rawdb.WriteHeadRewardNumber(hc.chainDb, header.SnailNumber.Uint64())
-		hc.currentReward.Store(br)
-	}
-
 	// Extend the canonical chain with the new header
 	rawdb.WriteCanonicalHash(hc.chainDb, hash, number)
 	rawdb.WriteHeadHeaderHash(hc.chainDb, hash)

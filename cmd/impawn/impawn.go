@@ -391,19 +391,7 @@ func loadSigningKey(keyfile string) common.Address {
 }
 
 func queryRewardInfo(conn *etrueclient.Client, number uint64, start bool) {
-	sheader, err := conn.SnailHeaderByNumber(context.Background(), nil)
-	if err != nil {
-		printError("get snail block error", err)
-	}
-	queryReward := uint64(0)
-	currentReward := sheader.Number.ToInt().Uint64() - SnailRewardInterval
-	if number > currentReward {
-		printError("reward no release current reward height ", currentReward)
-	} else if number > 0 || start {
-		queryReward = number
-	} else {
-		queryReward = currentReward
-	}
+	queryReward := number
 	var crc map[string]interface{}
 	crc, err = conn.GetChainRewardContent(context.Background(), from, new(big.Int).SetUint64(queryReward))
 	if err != nil {

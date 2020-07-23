@@ -250,19 +250,15 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	return blocks, receipts
 }
 
-func GenerateChainWithReward(config *params.ChainConfig, parent *types.Block, rewardSnailBlock *types.SnailBlock, engine consensus.Engine, db etruedb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
+func GenerateChainWithReward(config *params.ChainConfig, parent *types.Block, engine consensus.Engine, db etruedb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
 	if config == nil {
 		config = params.TestChainConfig
 	}
 	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
 	chainreader := &fakeChainReader{config: config}
-	genblock := func(i int, parent *types.Block, statedb *state.StateDB, rewardBlock *types.SnailBlock) (*types.Block, types.Receipts) {
+	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
 		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
 		b.header = makeHeader(chainreader, parent, statedb, b.engine)
-		if rewardBlock != nil {
-			b.header.SnailNumber = rewardBlock.Number()
-			b.header.SnailHash = rewardBlock.Hash()
-		}
 		// Execute any user modifications to the block and finalize it
 		if gen != nil {
 			gen(i, b)
@@ -292,7 +288,7 @@ func GenerateChainWithReward(config *params.ChainConfig, parent *types.Block, re
 			panic(err)
 		}
 		if i == 0 {
-			block, receipt := genblock(i, parent, statedb, rewardSnailBlock)
+			block, receipt := genblock(i, parent, statedb)
 			blocks[i] = block
 			receipts[i] = receipt
 			parent = block

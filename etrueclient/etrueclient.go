@@ -78,14 +78,6 @@ func (ec *Client) SnailBlockByHash(ctx context.Context, hash common.Hash) (*rpcS
 	return ec.getSnailBlock(ctx, "etrue_getSnailBlockByHash", hash, true)
 }
 
-// SnailBlockByNumber returns a block from the current canonical chain. If number is nil, the
-// latest known block is returned.
-//
-// Note that loading full blocks requires two requests.
-func (ec *Client) SnailBlockByNumber(ctx context.Context, number *big.Int) (*rpcSnailBlock, error) {
-	return ec.getSnailBlock(ctx, "etrue_getSnailBlockByNumber", toBlockNumArg(number), true)
-}
-
 type rpcSnailBlock struct {
 	Hash             common.Hash      `json:"hash"`
 	Number           *hexutil.Big     `json:"number"`
@@ -187,17 +179,6 @@ type rpcSnailHeader struct {
 func (ec *Client) SnailHeaderByHash(ctx context.Context, hash common.Hash) (*rpcSnailHeader, error) {
 	var head *rpcSnailHeader
 	err := ec.c.CallContext(ctx, &head, "etrue_getSnailBlockByHash", hash, false)
-	if err == nil && head == nil {
-		err = truechain.NotFound
-	}
-	return head, err
-}
-
-// SnailHeaderByNumber returns a block header from the current canonical chain. If number is
-// nil, the latest known header is returned.
-func (ec *Client) SnailHeaderByNumber(ctx context.Context, number *big.Int) (*rpcSnailHeader, error) {
-	var head *rpcSnailHeader
-	err := ec.c.CallContext(ctx, &head, "etrue_getSnailBlockByNumber", toBlockNumArg(number), false)
 	if err == nil && head == nil {
 		err = truechain.NotFound
 	}
@@ -427,7 +408,6 @@ type rpcProgress struct {
 	HighestFastBlock  uint64 // Highest alleged block number in the chain
 
 	StartingSnailBlock hexutil.Uint64
-	CurrentSnailBlock  hexutil.Uint64
 	HighestSnailBlock  hexutil.Uint64
 	PulledStates       hexutil.Uint64
 	KnownStates        hexutil.Uint64
@@ -455,7 +435,6 @@ func (ec *Client) SyncProgress(ctx context.Context) (*truechain.SyncProgress, er
 		HighestFastBlock:  uint64(progress.HighestFastBlock),
 
 		StartingSnailBlock: uint64(progress.StartingSnailBlock),
-		CurrentSnailBlock:  uint64(progress.CurrentSnailBlock),
 		HighestSnailBlock:  uint64(progress.HighestSnailBlock),
 		PulledStates:       uint64(progress.PulledStates),
 		KnownStates:        uint64(progress.KnownStates),
