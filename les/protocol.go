@@ -61,10 +61,7 @@ const (
 	FastBlockHeadersMsg     = 0x03
 	GetFastBlockBodiesMsg   = 0x04
 	FastBlockBodiesMsg      = 0x05
-	GetSnailBlockHeadersMsg = 0x06
-	SnailBlockHeadersMsg    = 0x07
 	GetSnailBlockBodiesMsg  = 0x08
-	SnailBlockBodiesMsg     = 0x09
 	GetFruitBodiesMsg       = 0x0a
 	FruitBodiesMsg          = 0x0b
 
@@ -93,8 +90,6 @@ type requestInfo struct {
 var requests = map[uint64]requestInfo{
 	GetFastBlockHeadersMsg:  {"GetBlockHeaders", MaxHeaderFetch},
 	GetFastBlockBodiesMsg:   {"GetBlockBodies", MaxBodyFetch},
-	GetSnailBlockHeadersMsg: {"GetBlockHeaders", MaxHeaderFetch},
-	GetSnailBlockBodiesMsg:  {"GetBlockBodies", MaxBodyFetch},
 	GetFruitBodiesMsg:       {"GetBlockBodies", MaxBodyFetch},
 	GetReceiptsMsg:          {"GetReceipts", MaxReceiptFetch},
 	GetCodeMsg:              {"GetCode", MaxCodeFetch},

@@ -34,7 +34,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/consensus"
 	elect "github.com/truechain/truechain-engineering-code/consensus/election"
 	"github.com/truechain/truechain-engineering-code/core"
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"github.com/truechain/truechain-engineering-code/core/state"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/core/vm"
@@ -75,7 +74,6 @@ var (
 // Backend wraps all methods required for  pbft_agent
 type Backend interface {
 	BlockChain() *core.BlockChain
-	SnailBlockChain() *snailchain.SnailBlockChain
 	TxPool() *core.TxPool
 	Config() *Config
 	Etherbase() (etherbase common.Address, err error)
@@ -85,7 +83,6 @@ type Backend interface {
 type PbftAgent struct {
 	config     *params.ChainConfig
 	fastChain  *core.BlockChain
-	snailChain *snailchain.SnailBlockChain
 	engine     consensus.Engine
 	eth        Backend
 	signer     types.Signer
@@ -156,7 +153,6 @@ func NewPbftAgent(etrue Backend, config *params.ChainConfig, engine consensus.En
 		engine:               engine,
 		eth:                  etrue,
 		fastChain:            etrue.BlockChain(),
-		snailChain:           etrue.SnailBlockChain(),
 		currentCommitteeInfo: new(types.CommitteeInfo),
 		nextCommitteeInfo:    new(types.CommitteeInfo),
 		committeeIds:         make([]*big.Int, committeeIDChanSize),
@@ -947,10 +943,6 @@ func (agent *PbftAgent) FetchFastBlock(committeeID *big.Int, infos []*types.Comm
 		GasLimit:   core.FastCalcGasLimit(parent, agent.gasFloor, agent.gasCeil),
 		Time:       big.NewInt(tstamp),
 	}
-	if err := agent.validateBlockSpace(header); err == types.ErrSnailBlockTooSlow {
-		return nil, err
-	}
-
 	//assign Proposer
 	pubKey, _ := crypto.UnmarshalPubkey(agent.committeeNode.Publickey)
 	header.Proposer = crypto.PubkeyToAddress(*pubKey)
@@ -980,8 +972,6 @@ func (agent *PbftAgent) FetchFastBlock(committeeID *big.Int, infos []*types.Comm
 		}
 		txs := types.NewTransactionsByPriceAndNonce(work.signer, pending)
 		work.commitTransactions(agent.mux, txs, agent.fastChain, feeAmount)
-		//calculate snailBlock reward
-		agent.rewardSnailBlock(header)
 		//padding Header.Root, TxHash, ReceiptHash.  Create the new block to seal with the consensus engine
 		if fastBlock, _,err = agent.engine.Finalize(agent.fastChain, header, work.state, work.txs, work.receipts, feeAmount); err != nil {
 			log.Error("Failed to finalize block for sealing", "err", err)
@@ -1007,47 +997,6 @@ func (agent *PbftAgent) GetCurrentHeight() *big.Int {
 //GetSeedMember get seed member
 func (agent *PbftAgent) GetSeedMember() []*types.CommitteeMember {
 	return nil
-}
-
-//validate space between latest fruit number of snailchain  and  lastest fastBlock number
-func (agent *PbftAgent) validateBlockSpace(header *types.Header) error {
-	if agent.singleNode {
-		return nil
-	}
-	snailBlock := agent.snailChain.CurrentBlock()
-	if snailBlock.NumberU64() == 0 {
-		space := new(big.Int).Sub(header.Number, common.Big0).Int64()
-		if space >= params.FastToFruitSpace.Int64() {
-			log.Warn("validateBlockSpace snailBlockNumber=0", "currentFastNumber", header.Number, "space", space)
-			return types.ErrSnailBlockTooSlow
-		}
-	}
-	blockFruits := snailBlock.Body().Fruits
-	if blockFruits != nil && len(blockFruits) > 0 {
-		lastFruitNum := blockFruits[len(blockFruits)-1].FastNumber()
-		space := new(big.Int).Sub(header.Number, lastFruitNum).Int64()
-		if space >= params.FastToFruitSpace.Int64() {
-			log.Warn("validateBlockSpace", "snailNumber", snailBlock.Number(), "lastFruitNum", lastFruitNum,
-				"currentFastNumber", header.Number, "space", space)
-			return types.ErrSnailBlockTooSlow
-		}
-	}
-	return nil
-}
-
-//generate rewardSnailHegiht
-func (agent *PbftAgent) rewardSnailBlock(header *types.Header) {
-	rewardSnailHegiht := agent.fastChain.NextSnailNumberReward()
-	space := new(big.Int).Sub(agent.snailChain.CurrentBlock().Number(), rewardSnailHegiht).Int64()
-	if space >= params.SnailRewardInterval.Int64() {
-		header.SnailNumber = rewardSnailHegiht
-		sb := agent.snailChain.GetBlockByNumber(rewardSnailHegiht.Uint64())
-		if sb != nil {
-			header.SnailHash = sb.Hash()
-		} else {
-			log.Error("cannot find snailBlock by rewardSnailHegiht.", "snailHeight", rewardSnailHegiht.Uint64())
-		}
-	}
 }
 //GenerateSignWithVote  generate sign from committeeMember in fastBlock
 func (agent *PbftAgent) GenerateSignWithVote(fb *types.Block, vote uint32, result bool) (*types.PbftSign, error) {
@@ -1124,11 +1073,6 @@ func (agent *PbftAgent) VerifyFastBlock(fb *types.Block, result bool) (*types.Pb
 
 	receipts, _, usedGas,_, err := bc.Processor().Process(fb, state, agent.vmConfig) //update
 	if err != nil {
-		if err == types.ErrSnailHeightNotYet {
-			log.Warn("verifyFastBlock :Snail height not yet", "currentFastNumber", fb.NumberU64(),
-				"rewardSnailBlock", fb.SnailNumber().Uint64())
-			return nil, err
-		}
 		log.Error("verifyFastBlock process error", "height:", fb.Number(), "err", err)
 		voteSign, _ := agent.GenerateSignWithVote(fb, types.VoteAgreeAgainst, result)
 		return voteSign, err

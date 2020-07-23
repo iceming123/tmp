@@ -451,8 +451,6 @@ func (s *Truechain) PbftAgent() *PbftAgent             { return s.agent }
 func (s *Truechain) AccountManager() *accounts.Manager { return s.accountManager }
 func (s *Truechain) BlockChain() *core.BlockChain      { return s.blockchain }
 func (s *Truechain) Config() *Config                   { return s.config }
-
-func (s *Truechain) SnailBlockChain() *chain.SnailBlockChain { return s.snailblockchain }
 func (s *Truechain) TxPool() *core.TxPool                    { return s.txPool }
 
 func (s *Truechain) SnailPool() *chain.SnailPool { return s.snailPool }

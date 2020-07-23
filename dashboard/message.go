@@ -50,7 +50,6 @@ type HomeMessage struct {
 
 type ChainMessage struct {
 	FastChain  *fastChainInfo  `json:"fastChain,omitempty"`  // fastChain info tree.
-	SnailChain *snailChainInfo `json:"snailChain,omitempty"` // snailChain info tree.
 }
 
 type MinerMessage struct {

@@ -64,19 +64,11 @@ var (
 	reqFHeaderInTrafficMeter  = metrics.NewRegisteredMeter("etrue/req/headers/in/traffic", nil)
 	reqFHeaderOutPacketsMeter = metrics.NewRegisteredMeter("etrue/req/headers/out/packets", nil)
 	reqFHeaderOutTrafficMeter = metrics.NewRegisteredMeter("etrue/req/headers/out/traffic", nil)
-	reqSHeaderInPacketsMeter  = metrics.NewRegisteredMeter("etrue/req/sheaders/in/packets", nil)
-	reqSHeaderInTrafficMeter  = metrics.NewRegisteredMeter("etrue/req/sheaders/in/traffic", nil)
-	reqSHeaderOutPacketsMeter = metrics.NewRegisteredMeter("etrue/req/sheaders/out/packets", nil)
-	reqSHeaderOutTrafficMeter = metrics.NewRegisteredMeter("etrue/req/sheaders/out/traffic", nil)
 
 	reqFBodyInPacketsMeter  = metrics.NewRegisteredMeter("etrue/req/fbodies/in/packets", nil)
 	reqFBodyInTrafficMeter  = metrics.NewRegisteredMeter("etrue/req/fbodies/in/traffic", nil)
 	reqFBodyOutPacketsMeter = metrics.NewRegisteredMeter("etrue/req/fbodies/out/packets", nil)
 	reqFBodyOutTrafficMeter = metrics.NewRegisteredMeter("etrue/req/fbodies/out/traffic", nil)
-	reqSBodyInPacketsMeter  = metrics.NewRegisteredMeter("etrue/req/sbodies/in/packets", nil)
-	reqSBodyInTrafficMeter  = metrics.NewRegisteredMeter("etrue/req/sbodies/in/traffic", nil)
-	reqSBodyOutPacketsMeter = metrics.NewRegisteredMeter("etrue/req/sbodies/out/packets", nil)
-	reqSBodyOutTrafficMeter = metrics.NewRegisteredMeter("etrue/req/sbodies/out/traffic", nil)
 
 	reqStateInPacketsMeter    = metrics.NewRegisteredMeter("etrue/req/states/in/packets", nil)
 	reqStateInTrafficMeter    = metrics.NewRegisteredMeter("etrue/req/states/in/traffic", nil)
@@ -91,10 +83,6 @@ var (
 	getHeadInTrafficMeter  = metrics.NewRegisteredMeter("etrue/get/head/in/traffic", nil)
 	getHeadOutPacketsMeter = metrics.NewRegisteredMeter("etrue/get/head/out/packets", nil)
 	getHeadOutTrafficMeter = metrics.NewRegisteredMeter("etrue/get/head/out/traffic", nil)
-	getBodyInPacketsMeter  = metrics.NewRegisteredMeter("etrue/get/bodies/in/packets", nil)
-	getBodyInTrafficMeter  = metrics.NewRegisteredMeter("etrue/get/bodies/in/traffic", nil)
-	getBodyOutPacketsMeter = metrics.NewRegisteredMeter("etrue/get/bodies/out/packets", nil)
-	getBodyOutTrafficMeter = metrics.NewRegisteredMeter("etrue/get/bodies/out/traffic", nil)
 
 	getNodeInfoInPacketsMeter    = metrics.NewRegisteredMeter("etrue/get/nodeinfo/in/packets", nil)
 	getNodeInfoInTrafficMeter  = metrics.NewRegisteredMeter("etrue/get/nodeinfo/in/traffic", nil)
@@ -140,13 +128,8 @@ func (rw *meteredMsgReadWriter) ReadMsg() (p2p.Msg, error) {
 	switch {
 	case msg.Code == FastBlockHeadersMsg:
 		packets, traffic = reqFHeaderInPacketsMeter, reqFHeaderInTrafficMeter
-	case msg.Code == SnailBlockHeadersMsg:
-		packets, traffic = reqSHeaderInPacketsMeter, reqSHeaderInTrafficMeter
 	case msg.Code == FastBlockBodiesMsg:
 		packets, traffic = reqFBodyInPacketsMeter, reqFBodyInTrafficMeter
-	case msg.Code == SnailBlockBodiesMsg:
-		packets, traffic = reqSBodyInPacketsMeter, reqSBodyInTrafficMeter
-
 	case msg.Code == NodeDataMsg:
 		packets, traffic = reqStateInPacketsMeter, reqStateInTrafficMeter
 	case msg.Code == ReceiptsMsg:
@@ -174,8 +157,6 @@ func (rw *meteredMsgReadWriter) ReadMsg() (p2p.Msg, error) {
 		packets, traffic = getHeadInPacketsMeter, getHeadInTrafficMeter
 	case msg.Code == GetFastBlockBodiesMsg:
 		packets, traffic = getHeadInPacketsMeter, getHeadInTrafficMeter
-	case msg.Code == GetSnailBlockHeadersMsg:
-		packets, traffic = getBodyInPacketsMeter, getBodyInTrafficMeter
 	case msg.Code == GetSnailBlockBodiesMsg:
 		packets, traffic = getBodyInPacketsMeter, getBodyInTrafficMeter
 	}
@@ -191,13 +172,8 @@ func (rw *meteredMsgReadWriter) WriteMsg(msg p2p.Msg) error {
 	switch {
 	case msg.Code == FastBlockHeadersMsg:
 		packets, traffic = reqFHeaderOutPacketsMeter, reqFHeaderOutTrafficMeter
-	case msg.Code == SnailBlockHeadersMsg:
-		packets, traffic = reqSHeaderOutPacketsMeter, reqSHeaderOutTrafficMeter
 	case msg.Code == FastBlockBodiesMsg:
 		packets, traffic = reqFBodyOutPacketsMeter, reqFBodyOutTrafficMeter
-	case msg.Code == SnailBlockBodiesMsg:
-		packets, traffic = reqSBodyOutPacketsMeter, reqSBodyOutTrafficMeter
-
 	case msg.Code == NodeDataMsg:
 		packets, traffic = reqStateOutPacketsMeter, reqStateOutTrafficMeter
 	case msg.Code == ReceiptsMsg:
@@ -225,8 +201,6 @@ func (rw *meteredMsgReadWriter) WriteMsg(msg p2p.Msg) error {
 		packets, traffic = getHeadOutPacketsMeter, getHeadOutTrafficMeter
 	case msg.Code == GetFastBlockBodiesMsg:
 		packets, traffic = getHeadInPacketsMeter, getHeadOutTrafficMeter
-	case msg.Code == GetSnailBlockHeadersMsg:
-		packets, traffic = getBodyOutPacketsMeter, getBodyOutTrafficMeter
 	case msg.Code == GetSnailBlockBodiesMsg:
 		packets, traffic = getBodyOutPacketsMeter, getBodyOutTrafficMeter
 	}

@@ -412,24 +412,11 @@ func (p *peer) ReplyBlockHeaders(reqID uint64, headers incompleteBlocks) *reply 
 	return &reply{p.rw, FastBlockHeadersMsg, reqID, data}
 }
 
-// ReplyBlockHeaders creates a reply with a batch of block headers
-func (p *peer) ReplySnailBlockHeaders(reqID uint64, headers snailHeadsData) *reply {
-	data, _ := rlp.EncodeToBytes(headers)
-	return &reply{p.rw, SnailBlockHeadersMsg, reqID, data}
-}
-
 // ReplyBlockBodiesRLP creates a reply with a batch of block contents from
 // an already RLP encoded format.
 func (p *peer) ReplyBlockBodiesRLP(reqID uint64, bodies []rlp.RawValue) *reply {
 	data, _ := rlp.EncodeToBytes(bodies)
 	return &reply{p.rw, FastBlockBodiesMsg, reqID, data}
-}
-
-// ReplySnailBlockBodiesRLP creates a reply with a batch of block contents from
-// an already RLP encoded format.
-func (p *peer) ReplySnailBlockBodiesRLP(reqID uint64, bodiesData snailBlockBodiesData) *reply {
-	data, _ := rlp.EncodeToBytes(bodiesData)
-	return &reply{p.rw, SnailBlockBodiesMsg, reqID, data}
 }
 
 // ReplySnailBlockBodiesRLP creates a reply with a batch of block contents from

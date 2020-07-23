@@ -238,7 +238,6 @@ func (s *LightEtrue) ResetWithGenesisBlock(gb *types.Block) {
 	s.fblockchain.ResetWithGenesisBlock(gb)
 }
 
-func (s *LightEtrue) SnailBlockChain() *light.LightChain { return s.blockchain }
 func (s *LightEtrue) BlockChain() *fast.LightChain       { return s.fblockchain }
 func (s *LightEtrue) TxPool() *fast.TxPool               { return s.txPool }
 func (s *LightEtrue) Engine() consensus.Engine           { return s.engine }
@@ -260,7 +259,7 @@ func (s *LightEtrue) Start(srvr *p2p.Server) error {
 	s.netRPCService = trueapi.NewPublicNetAPI(srvr, s.networkId)
 	// clients are searching for the first advertised protocol in the list
 	protocolVersion := AdvertiseProtocolVersions[0]
-	s.serverPool.start(srvr, lesTopic(s.SnailBlockChain().Genesis().Hash(), protocolVersion))
+	s.serverPool.start(srvr, lesTopic(s.BlockChain().Genesis().Hash(), protocolVersion))
 	s.protocolManager.Start(s.config.LightPeers)
 	return nil
 }

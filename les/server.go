@@ -67,7 +67,7 @@ type LesServer struct {
 func NewLesServer(etrue *etrue.Truechain, config *etrue.Config) (*LesServer, error) {
 	lesTopics := make([]discv5.Topic, len(AdvertiseProtocolVersions))
 	for i, pv := range AdvertiseProtocolVersions {
-		lesTopics[i] = lesTopic(etrue.SnailBlockChain().Genesis().Hash(), pv)
+		lesTopics[i] = lesTopic(etrue.BlockChain().Genesis().Hash(), pv)
 	}
 	quitSync := make(chan struct{})
 	srv := &LesServer{
@@ -99,11 +99,11 @@ func NewLesServer(etrue *etrue.Truechain, config *etrue.Config) (*LesServer, err
 			"chtroot", checkpoint.CHTRoot, "bloomroot", checkpoint.BloomRoot)
 	}
 
-	srv.chtIndexer.Start(etrue.SnailBlockChain())
+	srv.chtIndexer.Start(etrue.BlockChain())
 
 	registrar := newCheckpointOracle(nil, srv.getLocalCheckpoint)
 	// TODO(rjl493456442) Checkpoint is useless for les server, separate handler for client and server.
-	pm, err := NewProtocolManager(etrue.BlockChain().Config(), nil, public.DefaultServerIndexerConfig, nil, 0, false, config.NetworkId, etrue.EventMux(), etrue.Engine(), newPeerSet(), etrue.BlockChain(), etrue.SnailBlockChain(), etrue.TxPool(), etrue.ChainDb(), nil, nil, registrar, quitSync, new(sync.WaitGroup), nil, etrue.Synced)
+	pm, err := NewProtocolManager(etrue.BlockChain().Config(), nil, public.DefaultServerIndexerConfig, nil, 0, false, config.NetworkId, etrue.EventMux(), etrue.Engine(), newPeerSet(), etrue.BlockChain(), etrue.TxPool(), etrue.ChainDb(), nil, nil, registrar, quitSync, new(sync.WaitGroup), nil, etrue.Synced)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func NewLesServer(etrue *etrue.Truechain, config *etrue.Config) (*LesServer, err
 			}
 			chtTrieRoot := light.GetChtRoot(pm.chainDb, chtSectionCurrent, chtSectionHead)
 			logger.Info("Loaded recent CHT", "section", chtSectionCurrent, "head", chtSectionHead.String(), "root", chtTrieRoot.String(),
-				"height", height, "current", etrue.SnailBlockChain().GetHeaderByHash(chtSectionHead).Number)
+				"height", height)
 		}
 	}
 
