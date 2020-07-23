@@ -134,7 +134,6 @@ type ProtocolManager struct {
 	retriever    *retrieveManager
 	servingQueue *servingQueue
 	downloader   *downloader.Downloader
-	fetcher      *lightFetcher
 	fastFetcher  *fastLightFetcher
 	ulc          *ulc
 	peers        *peerSet
@@ -155,12 +154,11 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(chainConfig *params.ChainConfig, checkpoint *params.TrustedCheckpoint, indexerConfig *public.IndexerConfig, ulcServers []string, ulcFraction int, client bool, networkId uint64, mux *event.TypeMux, engine consensus.Engine, peers *peerSet, blockchain FastBlockChain,txpool txPool, chainDb etruedb.Database, odr *LesOdr, serverPool *serverPool, registrar *checkpointOracle, quitSync chan struct{}, wg *sync.WaitGroup, election *Election, synced func() bool) (*ProtocolManager, error) {
+func NewProtocolManager(chainConfig *params.ChainConfig, checkpoint *params.TrustedCheckpoint, indexerConfig *public.IndexerConfig, ulcServers []string, ulcFraction int, client bool, networkId uint64, mux *event.TypeMux, engine consensus.Engine, peers *peerSet, blockchain FastBlockChain, txpool txPool, chainDb etruedb.Database, odr *LesOdr, serverPool *serverPool, registrar *checkpointOracle, quitSync chan struct{}, wg *sync.WaitGroup, election *Election, synced func() bool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		client:      client,
 		eventMux:    mux,
-		blockchain:  snailchain,
 		fblockchain: blockchain,
 		chainConfig: chainConfig,
 		iConfig:     indexerConfig,
@@ -201,12 +199,9 @@ func NewProtocolManager(chainConfig *params.ChainConfig, checkpoint *params.Trus
 		if checkpoint != nil {
 			checkpointNumber = (checkpoint.SectionIndex+1)*params.CHTFrequency - 1
 		}
-		manager.downloader = downloader.New(checkpointNumber, chainDb,nil,manager.eventMux, blockchain, nil, removePeer)
+		manager.downloader = downloader.New(checkpointNumber, chainDb, nil, manager.eventMux, blockchain, nil, removePeer)
 		manager.peers.notify((*downloaderPeerNotify)(manager))
 		manager.fastFetcher = newFastLightFetcher(manager)
-		manager.fetcher = newLightFetcher(manager)
-		manager.fetcher.setFastFetcher(manager.fastFetcher)
-
 	}
 
 	return manager, nil
@@ -351,8 +346,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		p.lock.Lock()
 		head := p.headInfo
 		p.lock.Unlock()
-		if pm.fetcher != nil {
-			pm.fetcher.announce(p, head)
+		if pm.fastFetcher != nil {
 			pm.fastFetcher.announce(p, head)
 		}
 
@@ -514,11 +508,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				p.Log().Trace("Valid announcement signature")
 			}
 
-			if pm.fetcher != nil {
+			if pm.fastFetcher != nil {
 				if req.FastHash != (common.Hash{}) {
 					pm.fastFetcher.announce(p, &req)
-				} else {
-					pm.fetcher.announce(p, &req)
 				}
 			}
 		}
@@ -640,7 +632,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case FastBlockHeadersMsg:
-		if pm.fdownloader == nil {
+		if pm.downloader == nil {
 			return errResp(ErrUnexpectedResponse, "fdownloader")
 		}
 
@@ -666,7 +658,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if pm.fastFetcher != nil && pm.fastFetcher.requestedID(resp.ReqID) {
 			pm.fastFetcher.deliverHeaders(p, resp.ReqID, &headsWithSigns{Heads: heads, Signs: signs})
 		} else {
-			err := pm.fdownloader.DeliverHeaders(p.id, heads, types.DownloaderCall)
+			err := pm.downloader.DeliverHeaders(p.id, heads, types.DownloaderCall)
 			if err != nil {
 				log.Debug(fmt.Sprint(err))
 			}
@@ -1440,12 +1432,9 @@ func (d *downloaderPeerNotify) registerPeer(p *peer) {
 		peer:    p,
 	}
 	pm.downloader.RegisterLightPeer(p.id, etrueVersion, p.RemoteAddr().String(), pc)
-	pm.fdownloader.RegisterLightPeer(p.id, etrueVersion, pc)
 }
 
 func (d *downloaderPeerNotify) unregisterPeer(p *peer) {
 	pm := (*ProtocolManager)(d)
 	pm.downloader.UnregisterPeer(p.id)
-	pm.fdownloader.UnregisterPeer(p.id)
-
 }

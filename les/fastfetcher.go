@@ -26,13 +26,16 @@ import (
 
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/mclock"
-	"github.com/truechain/truechain-engineering-code/log"
 	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/core/types"
+	"github.com/truechain/truechain-engineering-code/log"
 )
 
 const (
-	hashLimit = 512 // Maximum number of unique blocks a peer may have announced
+	blockDelayTimeout    = time.Second * 10 // timeout for a peer to announce a head that has already been confirmed by others
+	maxNodeCount         = 20               // maximum number of fetcherTreeNode entries remembered for each peer
+	serverStateAvailable = 100              // number of recent blocks where state availability is assumed
+	hashLimit            = 512              // Maximum number of unique blocks a peer may have announced
 )
 
 // fastLightFetcher implements retrieval of newly announced headers. It also provides a peerHasBlock function for the
