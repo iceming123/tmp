@@ -54,7 +54,6 @@ type SimulatedBackend struct {
 func NewSimulatedBackendWithDatabase(database etruedb.Database, alloc types.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
 	genesis := core.Genesis{Config: params.AllMinervaProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
 	genesis.MustFastCommit(database)
-	// genesis.MustSnailCommit(database)
 	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{})
 
 	backend := &SimulatedBackend{

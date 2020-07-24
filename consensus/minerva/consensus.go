@@ -89,37 +89,6 @@ func (m *Minerva) VerifyHeader(chain consensus.ChainReader, header *types.Header
 
 	return m.verifyHeader(chain, header, parent)
 }
-
-func (m *Minerva) getParents(chain consensus.SnailChainReader, header *types.SnailHeader) []*types.SnailHeader {
-	return GetParents(chain, header)
-}
-
-//GetParents the calc different need parents
-func GetParents(chain consensus.SnailChainReader, header *types.SnailHeader) []*types.SnailHeader {
-	number := header.Number.Uint64()
-	period := params.DifficultyPeriod.Uint64()
-	if number < period {
-		period = number
-	}
-	//log.Info("getParents", "number", header.Number, "period", period)
-	parents := make([]*types.SnailHeader, period)
-	hash := header.ParentHash
-	for i := uint64(1); i <= period; i++ {
-		if number-i < 0 {
-			break
-		}
-		parent := chain.GetHeader(hash, number-i)
-		if parent == nil {
-			log.Warn("getParents get parent failed.", "number", number-i, "hash", hash)
-			return nil
-		}
-		parents[period-i] = parent
-		hash = parent.ParentHash
-	}
-
-	return parents
-}
-
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications.

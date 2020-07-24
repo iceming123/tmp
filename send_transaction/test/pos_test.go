@@ -2,7 +2,6 @@ package test
 
 import (
 	"fmt"
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"math/big"
 	"os"
 	"testing"
@@ -166,10 +165,7 @@ func TestRewardTime(t *testing.T) {
 
 	genesis := gspec.MustFastCommit(db)
 	blockchain, _ := core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{})
-	snailGenesis := gspec.MustSnailCommit(db)
-	snailChainTest, _ := snailchain.NewSnailBlockChain(db, gspec.Config, engine, blockchain)
 	parentFast := genesis
-	parentSnail := []*types.SnailBlock{snailGenesis}
 	delegateNum = 50000
 
 	for i := 0; i < 505; i++ {
@@ -185,11 +181,6 @@ func TestRewardTime(t *testing.T) {
 			panic(err)
 		}
 		parentFast = blockchain.CurrentBlock()
-		schain := snailchain.GenerateChain(gspec.Config, blockchain, parentSnail, 1, 7, nil)
-		if _, err := snailChainTest.InsertChain(schain); err != nil {
-			panic(err)
-		}
-		parentSnail = snailChainTest.GetBlocksFromNumber(0)
 	}
 }
 

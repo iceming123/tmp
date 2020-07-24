@@ -66,12 +66,6 @@ func (d *diffTest) UnmarshalJSON(b []byte) (err error) {
 	return nil
 }
 
-//func (d *diffTest) MakeSnailChain（）{
-//	blocks := snailchain.GenerateChain
-
-//}
-
-
 func TestAccountDiv(t *testing.T) {
 	r := new(big.Int)
 	println(r.Uint64())

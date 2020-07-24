@@ -14,7 +14,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/consensus/minerva"
 	"github.com/truechain/truechain-engineering-code/core"
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"github.com/truechain/truechain-engineering-code/core/state"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/core/vm"
@@ -190,7 +189,6 @@ func DefaulGenesisBlock() *core.Genesis {
 
 type POSManager struct {
 	blockchain  *core.BlockChain
-	snailchain  *snailchain.SnailBlockChain
 	chainconfig *params.ChainConfig
 	GetBalance  func(addr common.Address) *big.Int
 }
@@ -224,11 +222,7 @@ func newTestPOSManager(sBlocks int, executableTx func(uint64, *core.BlockGen, *c
 	genesis := gspec.MustFastCommit(db)
 	blockchain, _ := core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{})
 
-	snailGenesis := gspec.MustSnailCommit(db)
-	snailChainTest, _ := snailchain.NewSnailBlockChain(db, gspec.Config, engine, blockchain)
-
 	parentFast := genesis
-	parentSnail := []*types.SnailBlock{snailGenesis}
 	for i := 0; i < sBlocks; i++ {
 
 		chain, _ := core.GenerateChain(gspec.Config, parentFast, engine, db, 60, func(i int, gen *core.BlockGen) {
@@ -244,18 +238,12 @@ func newTestPOSManager(sBlocks int, executableTx func(uint64, *core.BlockGen, *c
 			panic(err)
 		}
 		parentFast = blockchain.CurrentBlock()
-		schain := snailchain.GenerateChain(gspec.Config, blockchain, parentSnail, 1, 7, nil)
-		if _, err := snailChainTest.InsertChain(schain); err != nil {
-			panic(err)
-		}
-		parentSnail = snailChainTest.GetBlocksFromNumber(0)
 	}
 
 	consensus.InitTIP8(gspec.Config)
 	fmt.Println("first ", types.GetFirstEpoch())
 	// Create the pos manager with the base fields
 	manager := &POSManager{
-		snailchain:  snailChainTest,
 		blockchain:  blockchain,
 		chainconfig: gspec.Config,
 	}

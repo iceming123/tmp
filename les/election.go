@@ -298,20 +298,6 @@ func (e *Election) getCommittee(id *big.Int) *types.ElectionCommittee {
 		return committee
 	}
 	return nil
-	// var c *types.ElectionCommittee
-	// if id.Cmp(common.Big0) == 0 {
-	// 	// genesis committee for committee 0
-	// 	c = &types.ElectionCommittee{Members: e.genesisCommittee}
-	// } else {
-	// 	// elect committee based on snail fruits
-	// 	begin, end := ElectionEpoch(id)
-	// 	c = election.ElectCommittee(e.snailchain, e.defaultMembers, begin, end)
-	// 	beginFruit := e.beginFruitNumber(begin)
-	// 	endFruit := e.endFruitNumber(end)
-	// 	log.Info("Committee members", "committee", id, "beginBlock", beginFruit, "endBlock", endFruit, "count", len(c.Members), "backup", len(c.Backups))
-	// }
-	// e.commiteeCache.Add(id.Uint64(), c)
-	// return c
 }
 
 // FinalizeCommittee upddate current committee state

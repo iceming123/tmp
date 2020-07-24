@@ -15,7 +15,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/cmd/utils"
 	"github.com/truechain/truechain-engineering-code/console"
 	"github.com/truechain/truechain-engineering-code/core"
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/etrue/downloader"
 	"github.com/truechain/truechain-engineering-code/etruedb"
@@ -220,17 +219,10 @@ func importChain(ctx *cli.Context) error {
 		if err := utils.ImportChain(fchain, ctx.Args().First()); err != nil {
 			log.Error("Import fast error", "err", err)
 		}
-		if err := utils.ImportSnailChain(schain, ctx.Args().First()); err != nil {
-			log.Error("Import snail error", "err", err)
-		}
-
 	} else {
 		for _, arg := range ctx.Args() {
 			if err := utils.ImportChain(fchain, arg); err != nil {
 				log.Error("Import fast error", "file", arg, "err", err)
-			}
-			if err := utils.ImportSnailChain(schain, arg); err != nil {
-				log.Error("Import snail error", "file", arg, "err", err)
 			}
 		}
 	}
@@ -321,27 +313,7 @@ func exportChain(ctx *cli.Context) error {
 			}
 			err = utils.ExportAppendChain(fchain, fp, uint64(first), uint64(last))
 		}
-
-	} else {
-
-		fp := ctx.Args().First()
-		if len(ctx.Args()) < 3 {
-			err = utils.ExportSnailChain(schain, fp)
-		} else {
-			// This can be improved to allow for numbers larger than 9223372036854775807
-			first, ferr := strconv.ParseInt(ctx.Args().Get(2), 10, 64)
-			last, lerr := strconv.ParseInt(ctx.Args().Get(3), 10, 64)
-			if ferr != nil || lerr != nil {
-				utils.Fatalf("Export error in parsing parameters: block number not an integer\n")
-			}
-			if first < 0 || last < 0 {
-				utils.Fatalf("Export error: block number must be greater than 0\n")
-			}
-			err = utils.ExportAppendSnailChain(schain, fp, uint64(first), uint64(last))
-		}
-
 	}
-
 	if err != nil {
 		utils.Fatalf("Export error: %v\n", err)
 	}

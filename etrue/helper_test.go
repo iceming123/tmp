@@ -24,8 +24,6 @@ import (
 	"crypto/rand"
 	ethash "github.com/truechain/truechain-engineering-code/consensus/minerva"
 	"github.com/truechain/truechain-engineering-code/core/state"
-
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"github.com/truechain/truechain-engineering-code/p2p/enode"
 	"math/big"
 	"sort"
@@ -53,7 +51,7 @@ var (
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of blocks already known, and potential notification
 // channels for different events.
-func newTestProtocolManager(mode downloader.SyncMode, blocks int, sBlocks int, generator func(int, *core.BlockGen), newtx chan<- []*types.Transaction, newft chan<- []*types.SnailBlock) (*ProtocolManager, *etruedb.MemDatabase, error) {
+func newTestProtocolManager(mode downloader.SyncMode, blocks int, generator func(int, *core.BlockGen), newtx chan<- []*types.Transaction) (*ProtocolManager, *etruedb.MemDatabase, error) {
 	var (
 		evmux = new(event.TypeMux)
 		db    = etruedb.NewMemDatabase()
@@ -96,8 +94,8 @@ func newTestProtocolManager(mode downloader.SyncMode, blocks int, sBlocks int, g
 // with the given number of blocks already known, and potential notification
 // channels for different events. In case of an error, the constructor force-
 // fails the test.
-func newTestProtocolManagerMust(t *testing.T, mode downloader.SyncMode, blocks int, sBlocks int, generator func(int, *core.BlockGen), newtx chan<- []*types.Transaction, newft chan<- []*types.SnailBlock) (*ProtocolManager, *etruedb.MemDatabase) {
-	pm, db, err := newTestProtocolManager(mode, blocks, sBlocks, generator, newtx, newft)
+func newTestProtocolManagerMust(t *testing.T, mode downloader.SyncMode, blocks int, generator func(int, *core.BlockGen), newtx chan<- []*types.Transaction) (*ProtocolManager, *etruedb.MemDatabase) {
+	pm, db, err := newTestProtocolManager(mode, blocks, generator, newtx)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
@@ -148,49 +146,6 @@ func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- types.NewTxsEvent) event.Sub
 }
 func (p *testTxPool) State() *state.ManagedState {
 	return nil
-}
-
-// testSnailPool is a fake, helper fruit pool for testing purposes
-type testSnailPool struct {
-	fruitFeed event.Feed
-	pool      []*types.SnailBlock        // Collection of all fruits
-	added     chan<- []*types.SnailBlock // Notification channel for new fruits
-
-	lock sync.RWMutex // Protects the transaction pool
-}
-
-// AddRemoteFruits appends a batch of fruits to the pool, and notifies any
-// listeners if the addition channel is non nil
-func (p *testSnailPool) AddRemoteFruits(fts []*types.SnailBlock, local bool) []error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	p.pool = append(p.pool, fts...)
-	if p.added != nil {
-		p.added <- fts
-	}
-	return make([]error, len(fts))
-}
-
-// PendingFruits returns all the fruits known to the pool
-func (p *testSnailPool) PendingFruits() map[common.Hash]*types.SnailBlock {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-
-	rtfruits := make(map[common.Hash]*types.SnailBlock)
-
-	for _, fruit := range p.pool {
-		rtfruits[fruit.FastHash()] = types.CopyFruit(fruit)
-	}
-
-	return rtfruits
-}
-
-func (p *testSnailPool) SubscribeNewFruitEvent(ch chan<- types.NewFruitsEvent) event.Subscription {
-	return p.fruitFeed.Subscribe(ch)
-}
-
-func (p *testSnailPool) RemovePendingFruitByFastHash(fasthash common.Hash) {
 }
 
 // testAgentNetwork is a fake, helper agent for testing purposes

@@ -31,7 +31,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/common/math"
 	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/core/rawdb"
-	snaildb "github.com/truechain/truechain-engineering-code/core/snailchain/rawdb"
 	"github.com/truechain/truechain-engineering-code/core/state"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/crypto"
@@ -257,7 +256,7 @@ func (g *Genesis) ToFastBlock(db etruedb.Database) *types.Block {
 		}
 	}
 	consensus.OnceInitImpawnState(g.Config,statedb,new(big.Int).SetUint64(g.Number))
-	if consensus.IsTIP8(new(big.Int).SetUint64(g.Number), g.Config, nil) {
+	if consensus.IsTIP8() {
 		impl := vm.NewImpawnImpl()
 		hh := g.Number
 		if hh != 0 {
@@ -316,77 +315,6 @@ func (g *Genesis) ToFastBlock(db etruedb.Database) *types.Block {
 // The block is committed as the canonical head block.
 func (g *Genesis) MustFastCommit(db etruedb.Database) *types.Block {
 	block, err := g.CommitFast(db)
-	if err != nil {
-		panic(err)
-	}
-	return block
-}
-
-// ToSnailBlock creates the genesis block and writes state of a genesis specification
-// to the given database (or discards it if nil).
-func (g *Genesis) ToSnailBlock(db etruedb.Database) *types.SnailBlock {
-	if db == nil {
-		db = etruedb.NewMemDatabase()
-	}
-
-	head := &types.SnailHeader{
-		Number:     new(big.Int).SetUint64(g.Number),
-		Nonce:      types.EncodeNonce(g.Nonce),
-		Time:       new(big.Int).SetUint64(g.Timestamp),
-		ParentHash: g.ParentHash,
-		Extra:      g.ExtraData,
-		Difficulty: g.Difficulty,
-		MixDigest:  g.Mixhash,
-		Coinbase:   g.Coinbase,
-	}
-
-	if g.Difficulty == nil {
-		head.Difficulty = params.GenesisDifficulty
-		g.Difficulty = params.GenesisDifficulty
-	}
-
-	fastBlock := g.ToFastBlock(db)
-	fruitHead := &types.SnailHeader{
-		Number:          new(big.Int).SetUint64(g.Number),
-		Nonce:           types.EncodeNonce(g.Nonce),
-		Time:            new(big.Int).SetUint64(g.Timestamp),
-		ParentHash:      g.ParentHash,
-		FastNumber:      fastBlock.Number(),
-		FastHash:        fastBlock.Hash(),
-		FruitDifficulty: new(big.Int).Div(g.Difficulty, params.FruitBlockRatio),
-		Coinbase:        g.Coinbase,
-	}
-	fruit := types.NewSnailBlock(fruitHead, nil, nil, nil, g.Config)
-
-	return types.NewSnailBlock(head, []*types.SnailBlock{fruit}, nil, nil, g.Config)
-}
-
-// CommitSnail writes the block and state of a genesis specification to the database.
-// The block is committed as the canonical head block.
-func (g *Genesis) CommitSnail(db etruedb.Database) (*types.SnailBlock, error) {
-	block := g.ToSnailBlock(db)
-	if block.Number().Sign() != 0 {
-		return nil, fmt.Errorf("can't commit genesis block with number > 0")
-	}
-	snaildb.WriteTd(db, block.Hash(), block.NumberU64(), g.Difficulty)
-	snaildb.WriteBlock(db, block)
-	snaildb.WriteFtLookupEntries(db, block)
-	snaildb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
-	snaildb.WriteHeadBlockHash(db, block.Hash())
-	snaildb.WriteHeadHeaderHash(db, block.Hash())
-
-	// config := g.Config
-	// if config == nil {
-	// 	config = params.AllMinervaProtocolChanges
-	// }
-	// snaildb.WriteChainConfig(db, block.Hash(), config)
-	return block, nil
-}
-
-// MustSnailCommit writes the genesis block and state to db, panicking on error.
-// The block is committed as the canonical head block.
-func (g *Genesis) MustSnailCommit(db etruedb.Database) *types.SnailBlock {
-	block, err := g.CommitSnail(db)
 	if err != nil {
 		panic(err)
 	}
@@ -480,13 +408,6 @@ func GenesisFastBlockForTesting(db etruedb.Database, addr common.Address, balanc
 	g := Genesis{Alloc: types.GenesisAlloc{addr: {Balance: balance}}, Config: params.AllMinervaProtocolChanges}
 	return g.MustFastCommit(db)
 }
-
-// GenesisSnailBlockForTesting creates and writes a block in which addr has the given wei balance.
-func GenesisSnailBlockForTesting(db etruedb.Database, addr common.Address, balance *big.Int) *types.SnailBlock {
-	g := Genesis{Alloc: types.GenesisAlloc{addr: {Balance: balance}}, Config: params.AllMinervaProtocolChanges}
-	return g.MustSnailCommit(db)
-}
-
 // DefaultDevGenesisBlock returns the Rinkeby network genesis block.
 func DefaultDevGenesisBlock() *Genesis {
 	i, _ := new(big.Int).SetString("90000000000000000000000", 10)

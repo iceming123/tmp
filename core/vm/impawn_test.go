@@ -129,19 +129,7 @@ func TestImpawnImplReward(t *testing.T) {
 	committee, _ := impl.DoElections(2, 400)
 	fmt.Println(impl.getCurrentEpochInfo(), " committee ", len(committee), " election 1 ", len(impl.getElections3(1)), "election 2 ", len(impl.getElections3(2)))
 
-	fruits := make([]*types.SnailBlock, 0)
-	for i := uint64(0); i < 60; i++ {
-		sh := &types.SnailHeader{
-			Number: big.NewInt(int64(341 + i)),
-		}
-		fruits = append(fruits, types.NewSnailBlockWithHeader(sh))
-	}
-	sh := &types.SnailHeader{
-		Number: big.NewInt(int64(5)),
-	}
-
-	sblock := types.NewSnailBlock(sh, fruits, nil, nil, params.TestChainConfig)
-	rinfo, _ := impl.Reward(sblock, big.NewInt(int64(100)),1)
+	rinfo, _ := impl.Reward(big.NewInt(int64(100)),1)
 	for i, info := range rinfo {
 		fmt.Println("i ", i, " info ", len(info.Items), " rinfo ", len(rinfo))
 		for j, item := range info.Items {
@@ -210,25 +198,13 @@ func TestImpawnImplRedeem(t *testing.T) {
 	impl.CancelDAccount(23, impl.accounts[1][3].Unit.Address, impl.accounts[1][3].Delegation[0].Unit.Address, big.NewInt(int64(70)))
 	impl.CancelSAccount(23, impl.accounts[1][3].Unit.Address, big.NewInt(int64(70)))
 
-	fruits := make([]*types.SnailBlock, 0)
-	for i := uint64(0); i < params.NewEpochLength; i++ {
-		sh := &types.SnailHeader{
-			Number: big.NewInt(int64(28 + i)),
-		}
-		fruits = append(fruits, types.NewSnailBlockWithHeader(sh))
-	}
-	sh := &types.SnailHeader{
-		Number: big.NewInt(int64(21)),
-	}
-	sblock := types.NewSnailBlock(sh, fruits, nil, nil, params.TestChainConfig)
-
 	fmt.Println(" Shift 2 ", impl.getCurrentEpochInfo(), " election  2 ", len(impl.getElections3(2)), " 3 ", len(impl.getElections3(3)))
 	committee, _ = impl.DoElections(2, 17)
 	fmt.Println(impl.getCurrentEpochInfo(), " committee ", len(committee), " election 2 ", len(impl.getElections3(2)), " election 3 ", len(impl.getElections3(3)))
 
 	impl.Shift(2,0)
 
-	impl.Reward(sblock, big.NewInt(int64(70)),1)
+	impl.Reward(big.NewInt(int64(70)),1)
 
 	impl.RedeemSAccount(29, impl.accounts[1][3].Unit.Address, big.NewInt(int64(70)))
 	impl.RedeemDAccount(29, impl.accounts[1][3].Unit.Address, impl.accounts[1][3].Delegation[0].Unit.Address, big.NewInt(int64(70)))

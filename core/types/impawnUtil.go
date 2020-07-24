@@ -315,14 +315,6 @@ func toReward(val *big.Float) *big.Int {
 func ToTrue(val *big.Int) *big.Float {
 	return new(big.Float).Quo(new(big.Float).SetInt(val), fbaseUnit)
 }
-func FromBlock(block *SnailBlock) (begin, end uint64) {
-	begin, end = 0, 0
-	l := len(block.Fruits())
-	if l > 0 {
-		begin, end = block.Fruits()[0].FastNumber().Uint64(), block.Fruits()[l-1].FastNumber().Uint64()
-	}
-	return
-}
 func GetFirstEpoch() *EpochIDInfo {
 	return &EpochIDInfo{
 		EpochID:     params.FirstNewEpochID,

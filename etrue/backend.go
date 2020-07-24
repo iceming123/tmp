@@ -36,8 +36,7 @@ import (
 	ethash "github.com/truechain/truechain-engineering-code/consensus/minerva"
 	"github.com/truechain/truechain-engineering-code/core"
 	"github.com/truechain/truechain-engineering-code/core/bloombits"
-	chain "github.com/truechain/truechain-engineering-code/core/snailchain"
-	"github.com/truechain/truechain-engineering-code/core/snailchain/rawdb"
+	"github.com/truechain/truechain-engineering-code/core/rawdb"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/core/vm"
 	"github.com/truechain/truechain-engineering-code/crypto"
@@ -112,10 +111,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 	if config.SyncMode == downloader.LightSync {
 		return nil, errors.New("can't run etrue.Truechain in light sync mode, use les.LightTruechain")
 	}
-	//if config.SyncMode == downloader.SnapShotSync {
-	//	return nil, errors.New("can't run etrue.Truechain in SnapShotSync sync mode, use les.LightTruechain")
-	//}
-
 	if !config.SyncMode.IsValid() {
 		return nil, fmt.Errorf("invalid sync mode %d", config.SyncMode)
 	}
@@ -125,11 +120,10 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 		return nil, err
 	}
 
-	chainConfig, genesisHash, _, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
 	if _, ok := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !ok {
 		return nil, genesisErr
 	}
-
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	/*if config.Genesis != nil {

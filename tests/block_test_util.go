@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/consensus/minerva"
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"github.com/truechain/truechain-engineering-code/core/vm"
 	"math/big"
 
@@ -52,11 +51,7 @@ func (t *BlockTest) UnmarshalJSON(in []byte) error {
 
 type btJSON struct {
 	FastBlocks  []btBlock    `json:"fastBlocks"`
-	SnailBlocks []snailBlock `json:"snailBlocks"`
-
 	FastGenesis btHeader    `json:"genesisFastBlockHeader"`
-	Genesis     snailHeader `json:"genesisBlockHeader"`
-
 	Pre        types.GenesisAlloc     `json:"pre"`
 	Post       types.GenesisAlloc     `json:"postState"`
 	BestBlock  common.UnprefixedHash  `json:"lastblockhash"`
@@ -70,13 +65,6 @@ type btBlock struct {
 	Txs         []*types.Transaction
 	Signs       []*types.PbftSign
 	Infos       []*types.CommitteeMember
-	Rlp         string
-}
-
-type snailBlock struct {
-	BlockHeader *snailHeader
-	Fruits      []*types.SnailBlock
-	Signs       []*types.PbftSign
 	Rlp         string
 }
 
@@ -102,33 +90,6 @@ type btHeaderMarshaling struct {
 	Difficulty *math.HexOrDecimal256
 	GasLimit   math.HexOrDecimal64
 	GasUsed    math.HexOrDecimal64
-	Timestamp  *math.HexOrDecimal256
-}
-
-//go:generate gencodec -type snailHeader -field-override snailHeaderMarshaling -out gen_snailheader.go
-type snailHeader struct {
-	ParentHash      common.Hash
-	Miner           common.Address
-	PointerHash     common.Hash
-	PointerNumber   *big.Int
-	FruitsHash      common.Hash
-	FastHash        common.Hash
-	FastNumber      *big.Int
-	SignHash        common.Hash
-	Difficulty      *big.Int
-	FruitDifficulty *big.Int
-	Number          *big.Int
-	PublicKey       []byte
-	Timestamp       *big.Int
-	ExtraData       []byte
-	MixHash         common.Hash
-	Nonce           types.BlockNonce
-}
-
-type snailHeaderMarshaling struct {
-	ExtraData  hexutil.Bytes
-	Number     *math.HexOrDecimal256
-	Difficulty *math.HexOrDecimal256
 	Timestamp  *math.HexOrDecimal256
 }
 
@@ -158,23 +119,12 @@ func (t *BlockTest) Run() error {
 	}
 
 	fastChain, err := core.NewBlockChain(db, nil, config, engine, vm.Config{})
-
-	genesis.MustSnailCommit(db)
-	// Initialize a fresh chain with only a genesis block
-	blockchain, err := snailchain.NewSnailBlockChain(db, params.TestChainConfig, engine, fastChain)
-
 	if err != nil {
 		return err
 	}
 
 	defer fastChain.Stop()
 	_, err = t.insertFastBlocks(fastChain)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = t.insertSnailBlocks(blockchain)
 
 	if err != nil {
 		return err
@@ -190,19 +140,6 @@ func (t *BlockTest) Run() error {
 	//return t.validateImportedHeaders(fastChain, validBlocks)
 
 	return nil
-}
-
-func (t *BlockTest) genesis(config *params.ChainConfig) *core.Genesis {
-	return &core.Genesis{
-		Config:     config,
-		Timestamp:  t.json.Genesis.Timestamp.Uint64(),
-		ParentHash: t.json.Genesis.ParentHash,
-		ExtraData:  t.json.Genesis.ExtraData,
-		GasLimit:   t.json.FastGenesis.GasLimit,
-		GasUsed:    t.json.FastGenesis.GasUsed,
-		Alloc:      t.json.Pre,
-		Committee:  t.json.Committee,
-	}
 }
 
 /* See https://github.com/ethereum/tests/wiki/Blockchain-Tests-II
@@ -247,53 +184,6 @@ func (t *BlockTest) insertFastBlocks(blockchain *core.BlockChain) ([]btBlock, er
 		if err = validateHeader(b.BlockHeader, cb.Header()); err != nil {
 			return nil, fmt.Errorf("Deserialised block header validation failed: %v", err)
 		}
-		validBlocks = append(validBlocks, b)
-	}
-	return validBlocks, nil
-}
-
-/* See https://github.com/ethereum/tests/wiki/Blockchain-Tests-II
-
-   Whether a block is valid or not is a bit subtle, it's defined by presence of
-   blockHeader, transactions and uncleHeaders fields. If they are missing, the block is
-   invalid and we must verify that we do not accept it.
-
-   Since some tests mix valid and invalid blocks we need to check this for every block.
-
-   If a block is invalid it does not necessarily fail the test, if it's invalidness is
-   expected we are expected to ignore it and continue processing and then validate the
-   post state.
-*/
-func (t *BlockTest) insertSnailBlocks(blockchain *snailchain.SnailBlockChain) ([]snailBlock, error) {
-	validBlocks := make([]snailBlock, 0)
-	// insert the test blocks, which will execute all transactions
-	for _, b := range t.json.SnailBlocks {
-		cb, err := b.decode()
-		if err != nil {
-			if b.BlockHeader == nil {
-				continue // OK - block is supposed to be invalid, continue with next block
-			} else {
-				return nil, fmt.Errorf("Block RLP decoding failed when expected to succeed: %v", err)
-			}
-		}
-		// RLP decoding worked, try to insert into chain:
-		blocks := types.SnailBlocks{cb}
-		i, err := blockchain.InsertChain(blocks)
-		if err != nil {
-			if b.BlockHeader == nil {
-				continue // OK - block is supposed to be invalid, continue with next block
-			} else {
-				return nil, fmt.Errorf("Block #%v insertion into chain failed: %v", blocks[i].Number(), err)
-			}
-		}
-		if b.BlockHeader == nil {
-			return nil, fmt.Errorf("Block insertion should have failed")
-		}
-
-		// validate RLP decoding by checking all values against test file JSON
-		//if err = validateHeader(b.BlockHeader, cb.Header()); err != nil {
-		//	return nil, fmt.Errorf("Deserialised block header validation failed: %v", err)
-		//}
 		validBlocks = append(validBlocks, b)
 	}
 	return validBlocks, nil
@@ -378,16 +268,6 @@ func (bb *btBlock) decode() (*types.Block, error) {
 		return nil, err
 	}
 	var b types.Block
-	err = rlp.DecodeBytes(data, &b)
-	return &b, err
-}
-
-func (bb *snailBlock) decode() (*types.SnailBlock, error) {
-	data, err := hexutil.Decode(bb.Rlp)
-	if err != nil {
-		return nil, err
-	}
-	var b types.SnailBlock
 	err = rlp.DecodeBytes(data, &b)
 	return &b, err
 }

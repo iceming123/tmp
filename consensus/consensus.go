@@ -53,29 +53,6 @@ type ChainReader interface {
 	GetBlockReward(snumber uint64) *types.BlockReward
 }
 
-// SnailChainReader defines a small collection of methods needed to access the local
-// block chain during header and/or uncle verification.
-// Temporary interface for snail
-type SnailChainReader interface {
-	// Config retrieves the blockchain's chain configuration.
-	Config() *params.ChainConfig
-
-	// CurrentHeader retrieves the current header from the local chain.
-	CurrentHeader() *types.SnailHeader
-
-	// GetHeader retrieves a block header from the database by hash and number.
-	GetHeader(hash common.Hash, number uint64) *types.SnailHeader
-
-	// GetHeaderByNumber retrieves a block header from the database by number.
-	GetHeaderByNumber(number uint64) *types.SnailHeader
-
-	// GetHeaderByHash retrieves a block header from the database by its hash.
-	GetHeaderByHash(hash common.Hash) *types.SnailHeader
-
-	// GetBlock retrieves a block from the database by hash and number.
-	GetBlock(hash common.Hash, number uint64) *types.SnailBlock
-}
-
 type RewardInfosAccess interface {
 	GetRewardInfos(number uint64) *types.ChainReward
 	SetRewardInfos(number uint64,infos *types.ChainReward) error
@@ -120,13 +97,6 @@ type Engine interface {
 
 	FinalizeCommittee(block *types.Block) error
 
-	// Seal generates a new block for the given input block with the local miner's
-	Seal(chain SnailChainReader, block *types.SnailBlock, stop <-chan struct{}) (*types.SnailBlock, error)
-
-	// ConSeal generates a new block for the given input block with the local miner's
-	// seal place on top.
-	ConSeal(chain SnailChainReader, block *types.SnailBlock, stop <-chan struct{}, send chan *types.SnailBlock)
-
 	// APIs returns the RPC APIs this consensus engine provides.
 	APIs(chain ChainReader) []rpc.API
 }
@@ -153,53 +123,8 @@ type PoW interface {
 	Engine
 }
 
-func IsTIP8(fastHeadNumber *big.Int, config *params.ChainConfig, reader SnailChainReader) bool {
-	if config.TIP8.CID.Sign() < 0 {
-		return true
-	}
-	if config.TIP8.FastNumber != nil && config.TIP8.FastNumber.Sign() > 0 {
-		return fastHeadNumber.Cmp(config.TIP8.FastNumber) >= 0
-	}
-
-	oldID := big.NewInt(0)
-	var lastFast *big.Int
-	if reader != nil {
-		snailHeadNumber := reader.CurrentHeader().Number
-		oldID = new(big.Int).Div(snailHeadNumber, params.ElectionPeriodNumber)
-		lastFast = getEndOfOldEpoch(oldID, reader)
-	}
-
-	if lastFast == nil {
-		res := oldID.Cmp(config.TIP8.CID)
-		if res <= 0 {
-			return false
-		} else {
-			return true
-		}
-	} else {
-		updateForkedPoint(oldID, lastFast, config)
-	}
-	return config.IsTIP8(oldID, fastHeadNumber)
-}
-func getEndOfOldEpoch(eid *big.Int, reader SnailChainReader) *big.Int {
-
-	switchCheckNumber := new(big.Int).Mul(new(big.Int).Add(eid, common.Big1), params.ElectionPeriodNumber)
-	snailEndNumber := new(big.Int).Sub(switchCheckNumber, params.SnailConfirmInterval)
-
-	header := reader.GetHeaderByNumber(snailEndNumber.Uint64())
-	if header == nil {
-		return nil
-	}
-	block := reader.GetBlock(header.Hash(), snailEndNumber.Uint64())
-	if block == nil {
-		return nil
-	}
-
-	fruits := block.Fruits()
-	lastFruitNumber := fruits[len(fruits)-1].FastNumber()
-	lastFastNumber := new(big.Int).Add(lastFruitNumber, params.ElectionSwitchoverNumber)
-
-	return lastFastNumber
+func IsTIP8() bool {
+	return true
 }
 func updateForkedPoint(forkedID, fastNumber *big.Int, config *params.ChainConfig) {
 	if config.TIP8.CID.Cmp(forkedID) == 0 && config.TIP8.FastNumber.Sign() == 0 && fastNumber != nil {

@@ -18,7 +18,6 @@ package etrue
 
 import (
 	"fmt"
-	"github.com/truechain/truechain-engineering-code/core/snailchain"
 	"math"
 	"math/big"
 	"math/rand"
@@ -478,7 +477,6 @@ func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
 			Difficulty: big.NewInt(20000),
 		}
 		genesis      = gspec.MustFastCommit(db)
-		snailGenesis = gspec.MustSnailCommit(db)
 
 		priKey, _     = crypto.GenerateKey()
 		coinbase      = crypto.PubkeyToAddress(priKey.PublicKey) //coinbase
@@ -500,9 +498,6 @@ func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
 
-	snailChain, _ := snailchain.NewSnailBlockChain(db, gspec.Config, pow, blockchain)
-
-	//
 	pm, err := NewProtocolManager(gspec.Config, downloader.FullSync, DefaultConfig.NetworkId, evmux, new(testTxPool), new(testSnailPool), pow, blockchain, snailChain, db, pbftAgent)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
@@ -518,8 +513,6 @@ func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
 		peers = append(peers, peer)
 	}
 	chain, _ := core.GenerateChain(gspec.Config, genesis, pow, db, 1, func(i int, gen *core.BlockGen) {})
-	_ = snailchain.GenerateChain(gspec.Config, blockchain, []*types.SnailBlock{snailGenesis}, 10, 7, func(i int, gen *snailchain.BlockGen) {})
-
 	pm.BroadcastFastBlock(chain[0], true /*propagate*/)
 
 	errCh := make(chan error, totalPeers)

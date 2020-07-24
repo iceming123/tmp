@@ -81,7 +81,6 @@ func (b *TrueAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*t
 
 // BlockByNumber returns block of fast chain by the number
 func (b *TrueAPIBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
-	// Only snailchain has miner, also return current block here for fastchain
 	if blockNr == rpc.PendingBlockNumber {
 		block := b.etrue.blockchain.CurrentBlock()
 		return block, nil
