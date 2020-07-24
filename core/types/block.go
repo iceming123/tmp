@@ -18,7 +18,6 @@
 package types
 
 import (
-	"crypto/ecdsa"
 	"encoding/binary"
 	"io"
 	"math/big"
@@ -31,8 +30,6 @@ import (
 
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
-	"github.com/truechain/truechain-engineering-code/crypto"
-	"github.com/truechain/truechain-engineering-code/params"
 	"github.com/truechain/truechain-engineering-code/rlp"
 	"golang.org/x/crypto/sha3"
 )

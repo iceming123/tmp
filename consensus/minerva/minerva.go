@@ -20,8 +20,6 @@ package minerva
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"math/big"
 	"math/rand"
@@ -33,11 +31,8 @@ import (
 	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/crypto"
-	"github.com/truechain/truechain-engineering-code/etruedb"
 	"github.com/truechain/truechain-engineering-code/log"
-	"github.com/truechain/truechain-engineering-code/metrics"
 	"github.com/truechain/truechain-engineering-code/rlp"
-	"github.com/truechain/truechain-engineering-code/rpc"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -49,7 +44,7 @@ var (
 	maxUint128 = new(big.Int).Exp(big.NewInt(2), big.NewInt(128), big.NewInt(0))
 
 	// sharedMinerva is a full instance that can be shared between multiple users.
-	sharedMinerva = New(Config{"", 3, 0, "", 1, 0, ModeNormal, 0})
+	sharedMinerva = New(Config{ModeNormal})
 	Big1e16 = big.NewInt(1e16) 			// 0.01 unit
 
 	//BaseBig ...

@@ -17,8 +17,6 @@
 package minerva
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,7 +25,6 @@ import (
 	"time"
 
 	"github.com/truechain/truechain-engineering-code/common"
-	"github.com/truechain/truechain-engineering-code/common/math"
 	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/core/state"
 	"github.com/truechain/truechain-engineering-code/core/types"
@@ -62,12 +59,6 @@ var (
 func (m *Minerva) Author(header *types.Header) (common.Address, error) {
 	return common.Address{}, nil
 }
-
-//AuthorSnail return Snail mine coinbase
-func (m *Minerva) AuthorSnail(header *types.SnailHeader) (common.Address, error) {
-	return header.Coinbase, nil
-}
-
 // VerifyHeader checks whether a header conforms to the consensus rules of the
 // stock Truechain m engine.
 func (m *Minerva) VerifyHeader(chain consensus.ChainReader, header *types.Header) error {

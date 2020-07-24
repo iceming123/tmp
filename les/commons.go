@@ -17,45 +17,71 @@
 package les
 
 import (
-	"github.com/truechain/truechain-engineering-code/core"
-	"github.com/truechain/truechain-engineering-code/light/fast"
-	"github.com/truechain/truechain-engineering-code/light/public"
+	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/truechain/truechain-engineering-code/common"
-	"github.com/truechain/truechain-engineering-code/etrue"
-	"github.com/truechain/truechain-engineering-code/etruedb"
+	"github.com/truechain/truechain-engineering-code/core"
+	"github.com/truechain/truechain-engineering-code/core/rawdb"
+	"github.com/truechain/truechain-engineering-code/core/types"
+	"github.com/truechain/truechain-engineering-code/eth"
+	"github.com/truechain/truechain-engineering-code/ethdb"
+	"github.com/truechain/truechain-engineering-code/les/checkpointoracle"
 	"github.com/truechain/truechain-engineering-code/light"
 	"github.com/truechain/truechain-engineering-code/p2p"
+	"github.com/truechain/truechain-engineering-code/p2p/discv5"
 	"github.com/truechain/truechain-engineering-code/p2p/enode"
 	"github.com/truechain/truechain-engineering-code/params"
 )
 
+func errResp(code errCode, format string, v ...interface{}) error {
+	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
+}
+
+func lesTopic(genesisHash common.Hash, protocolVersion uint) discv5.Topic {
+	var name string
+	switch protocolVersion {
+	case lpv2:
+		name = "LES2"
+	default:
+		panic(nil)
+	}
+	return discv5.Topic(name + "@" + common.Bytes2Hex(genesisHash.Bytes()[0:8]))
+}
+
+type chainReader interface {
+	CurrentHeader() *types.Header
+}
+
 // lesCommons contains fields needed by both server and client.
 type lesCommons struct {
-	config           *etrue.Config
-	iConfig          *public.IndexerConfig
-	chainDb          etruedb.Database
-	protocolManager  *ProtocolManager
-	bloomTrieIndexer *core.ChainIndexer
+	genesis                      common.Hash
+	config                       *eth.Config
+	chainConfig                  *params.ChainConfig
+	iConfig                      *light.IndexerConfig
+	chainDb                      ethdb.Database
+	chainReader                  chainReader
+	chtIndexer, bloomTrieIndexer *core.ChainIndexer
+	oracle                       *checkpointoracle.CheckpointOracle
+
+	closeCh chan struct{}
+	wg      sync.WaitGroup
 }
 
 // NodeInfo represents a short summary of the Ethereum sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network      uint64                   `json:"network"`      // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
-	Genesis      common.Hash              `json:"genesis"`      // SHA3 hash of the host's genesis block
-	Config       *params.ChainConfig      `json:"config"`       // Chain configuration for the fork rules
-	Head         common.Hash              `json:"head"`         // SHA3 hash of the host's best owned block
-	CHT          params.TrustedCheckpoint `json:"cht"`          // Trused CHT checkpoint for fast catchup
-	Difficulty   *big.Int                 `json:"difficulty"`   // Total difficulty of the host's blockchain
-	SnailGenesis common.Hash              `json:"snailGenesis"` // SHA3 hash of the host's genesis block
-	SnailConfig  *params.ChainConfig      `json:"snailConfig"`  // Chain configuration for the fork rules
-	SnailHead    common.Hash              `json:"snailHead"`    // SHA3 hash of the host's best owned block
+	Network    uint64                   `json:"network"`    // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
+	Difficulty *big.Int                 `json:"difficulty"` // Total difficulty of the host's blockchain
+	Genesis    common.Hash              `json:"genesis"`    // SHA3 hash of the host's genesis block
+	Config     *params.ChainConfig      `json:"config"`     // Chain configuration for the fork rules
+	Head       common.Hash              `json:"head"`       // SHA3 hash of the host's best owned block
+	CHT        params.TrustedCheckpoint `json:"cht"`        // Trused CHT checkpoint for fast catchup
 }
 
 // makeProtocols creates protocol descriptors for the given LES versions.
-func (c *lesCommons) makeProtocols(versions []uint) []p2p.Protocol {
+func (c *lesCommons) makeProtocols(versions []uint, runPeer func(version uint, p *p2p.Peer, rw p2p.MsgReadWriter) error, peerInfo func(id enode.ID) interface{}, dialCandidates enode.Iterator) []p2p.Protocol {
 	protos := make([]p2p.Protocol, len(versions))
 	for i, version := range versions {
 		version := version
@@ -64,15 +90,11 @@ func (c *lesCommons) makeProtocols(versions []uint) []p2p.Protocol {
 			Version:  version,
 			Length:   ProtocolLengths[version],
 			NodeInfo: c.nodeInfo,
-			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				return c.protocolManager.runPeer(version, p, rw)
+			Run: func(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
+				return runPeer(version, peer, rw)
 			},
-			PeerInfo: func(id enode.ID) interface{} {
-				if p := c.protocolManager.peers.Peer(peerIdToString(id)); p != nil {
-					return p.Info()
-				}
-				return nil
-			},
+			PeerInfo:       peerInfo,
+			DialCandidates: dialCandidates,
 		}
 	}
 	return protos
@@ -80,27 +102,23 @@ func (c *lesCommons) makeProtocols(versions []uint) []p2p.Protocol {
 
 // nodeInfo retrieves some protocol metadata about the running host node.
 func (c *lesCommons) nodeInfo() interface{} {
-	chain := c.protocolManager.blockchain
-	head := chain.CurrentHeader()
+	head := c.chainReader.CurrentHeader()
 	hash := head.Hash()
 	return &NodeInfo{
-		Network:      c.config.NetworkId,
-		Genesis:      chain.Genesis().Hash(),
-		Config:       chain.Config(),
-		Head:         chain.CurrentHeader().Hash(),
-		CHT:          c.latestLocalCheckpoint(),
-		Difficulty:   chain.GetTd(hash, head.Number.Uint64()),
-		SnailGenesis: chain.Genesis().Hash(),
-		SnailConfig:  chain.Config(),
-		SnailHead:    hash,
+		Network:    c.config.NetworkId,
+		Difficulty: rawdb.ReadTd(c.chainDb, hash, head.Number.Uint64()),
+		Genesis:    c.genesis,
+		Config:     c.chainConfig,
+		Head:       hash,
+		CHT:        c.latestLocalCheckpoint(),
 	}
 }
 
-// latestLocalCheckpoint finds the common stored section index and returns a set of
-// post-processed trie roots (CHT and BloomTrie) associated with
-// the appropriate section index and head hash as a local checkpoint package.
+// latestLocalCheckpoint finds the common stored section index and returns a set
+// of post-processed trie roots (CHT and BloomTrie) associated with the appropriate
+// section index and head hash as a local checkpoint package.
 func (c *lesCommons) latestLocalCheckpoint() params.TrustedCheckpoint {
-	sections := 0
+	sections, _, _ := c.chtIndexer.Sections()
 	sections2, _, _ := c.bloomTrieIndexer.Sections()
 	// Cap the section index if the two sections are not consistent.
 	if sections > sections2 {
@@ -110,21 +128,20 @@ func (c *lesCommons) latestLocalCheckpoint() params.TrustedCheckpoint {
 		// No checkpoint information can be provided.
 		return params.TrustedCheckpoint{}
 	}
-	return c.getLocalCheckpoint(sections-1, sections2-1)
+	return c.localCheckpoint(sections - 1)
 }
 
-// getLocalCheckpoint returns a set of post-processed trie roots (CHT and BloomTrie)
+// localCheckpoint returns a set of post-processed trie roots (CHT and BloomTrie)
 // associated with the appropriate head hash by specific section index.
 //
 // The returned checkpoint is only the checkpoint generated by the local indexers,
 // not the stable checkpoint registered in the registrar contract.
-func (c *lesCommons) getLocalCheckpoint(index, bIndex uint64) params.TrustedCheckpoint {
-	sectionHead := common.Hash{}
-	bloomHead := c.bloomTrieIndexer.SectionHead(bIndex)
+func (c *lesCommons) localCheckpoint(index uint64) params.TrustedCheckpoint {
+	sectionHead := c.chtIndexer.SectionHead(index)
 	return params.TrustedCheckpoint{
 		SectionIndex: index,
 		SectionHead:  sectionHead,
 		CHTRoot:      light.GetChtRoot(c.chainDb, index, sectionHead),
-		BloomRoot:    fast.GetBloomTrieRoot(c.chainDb, bIndex, bloomHead),
+		BloomRoot:    light.GetBloomTrieRoot(c.chainDb, index, sectionHead),
 	}
 }

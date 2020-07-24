@@ -210,7 +210,6 @@ var (
 func newTestPOSManager(sBlocks int, executableTx func(uint64, *core.BlockGen, *core.BlockChain, *types.Header, *state.StateDB)) *POSManager {
 
 	params.MinTimeGap = big.NewInt(0)
-	params.SnailRewardInterval = big.NewInt(3)
 	params.ElectionMinLimitForStaking = new(big.Int).Mul(big.NewInt(1), big.NewInt(1e18))
 	params.NewEpochLength = 2000  // about 1.5 days
 	params.MaxRedeemHeight = 1000 // about 15 days

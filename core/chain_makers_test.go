@@ -114,7 +114,6 @@ func TestTransactionCost(t *testing.T) {
 		addresses = append(addresses, address)
 	}
 
-	params.MinimumFruits = 1
 	var (
 		db    = etruedb.NewMemDatabase()
 		pow   = minerva.NewFaker()
@@ -143,7 +142,7 @@ func TestTransactionCost(t *testing.T) {
 	blockchain, _ := NewBlockChain(db, nil, gspec.Config, pow, vm.Config{})
 	defer blockchain.Stop()
 
-	fastBlocks, _ := GenerateChain(gspec.Config, fastParent, pow, db, params.MinimumFruits, func(i int, gen *BlockGen) () {
+	fastBlocks, _ := GenerateChain(gspec.Config, fastParent, pow, db, 100, func(i int, gen *BlockGen) () {
 		tx1, _ := types.SignTx(types.NewTransaction(gen.TxNonce(addresses[0]), addresses[1], tx_amount, params.TxGas, tx_price, nil), signer, privateKeys[0])
 		gen.AddTx(tx1)
 	})
@@ -171,7 +170,7 @@ func TestTransactionCost(t *testing.T) {
 		log.Error("[TestTransactionCost error]:tx1 gas is not equal")
 	}
 	//test transaction2  payment
-	fastBlocks, _ = GenerateChain(gspec.Config, fastParent, pow, db, params.MinimumFruits, func(i int, gen *BlockGen) () {
+	fastBlocks, _ = GenerateChain(gspec.Config, fastParent, pow, db, 100, func(i int, gen *BlockGen) () {
 		signTx_sender, _ := types.SignTx(types.NewTransaction_Payment(gen.TxNonce(addresses[0]), addresses[1], tx_amount, tx_fee, params.TxGas, tx_price, nil, addresses[2]), signer, privateKeys[0])
 		tx2, _ := types.SignTx_Payment(signTx_sender, signer, privateKeys[2])
 		gen.AddTx(tx2)

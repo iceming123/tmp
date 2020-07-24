@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package fast
+package light
 
 import (
 	"context"
@@ -22,15 +22,15 @@ import (
 	"fmt"
 
 	"github.com/truechain/truechain-engineering-code/common"
-	"github.com/truechain/truechain-engineering-code/crypto"
 	"github.com/truechain/truechain-engineering-code/core/state"
 	"github.com/truechain/truechain-engineering-code/core/types"
-	"github.com/truechain/truechain-engineering-code/etruedb"
+	"github.com/truechain/truechain-engineering-code/crypto"
+	"github.com/truechain/truechain-engineering-code/ethdb"
 	"github.com/truechain/truechain-engineering-code/trie"
 )
 
 func NewState(ctx context.Context, head *types.Header, odr OdrBackend) *state.StateDB {
-	state, _ := state.New(head.Root, NewStateDatabase(ctx, head, odr))
+	state, _ := state.New(head.Root, NewStateDatabase(ctx, head, odr), nil)
 	return state
 }
 
@@ -67,7 +67,7 @@ func (db *odrDatabase) CopyTrie(t state.Trie) state.Trie {
 }
 
 func (db *odrDatabase) ContractCode(addrHash, codeHash common.Hash) ([]byte, error) {
-	if codeHash == sha3_nil {
+	if codeHash == sha3Nil {
 		return nil, nil
 	}
 	if code, err := db.backend.Database().Get(codeHash[:]); err == nil {
@@ -76,7 +76,7 @@ func (db *odrDatabase) ContractCode(addrHash, codeHash common.Hash) ([]byte, err
 	id := *db.id
 	id.AccKey = addrHash[:]
 	req := &CodeRequest{Id: &id, Hash: codeHash}
-	err := db.backend.FastRetrieve(db.ctx, req)
+	err := db.backend.Retrieve(db.ctx, req)
 	return req.Data, err
 }
 
@@ -141,7 +141,7 @@ func (t *odrTrie) GetKey(sha []byte) []byte {
 	return nil
 }
 
-func (t *odrTrie) Prove(key []byte, fromLevel uint, proofDb etruedb.Putter) error {
+func (t *odrTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
 	return errors.New("not implemented, needs client/server interface split")
 }
 
@@ -160,7 +160,7 @@ func (t *odrTrie) do(key []byte, fn func() error) error {
 			return err
 		}
 		r := &TrieRequest{Id: t.id, Key: key}
-		if err := t.db.backend.FastRetrieve(t.db.ctx, r); err != nil {
+		if err := t.db.backend.Retrieve(t.db.ctx, r); err != nil {
 			return err
 		}
 	}
@@ -215,7 +215,7 @@ func (it *nodeIterator) do(fn func() error) {
 		}
 		lasthash = missing.NodeHash
 		r := &TrieRequest{Id: it.t.id, Key: nibblesToKey(missing.Path)}
-		if it.err = it.t.db.backend.FastRetrieve(it.t.db.ctx, r); it.err != nil {
+		if it.err = it.t.db.backend.Retrieve(it.t.db.ctx, r); it.err != nil {
 			return
 		}
 	}

@@ -293,7 +293,7 @@ func GenerateChainWithReward(config *params.ChainConfig, parent *types.Block, en
 			receipts[i] = receipt
 			parent = block
 		} else {
-			block, receipt := genblock(i, parent, statedb, nil)
+			block, receipt := genblock(i, parent, statedb)
 			blocks[i] = block
 			receipts[i] = receipt
 			parent = block

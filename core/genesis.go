@@ -141,7 +141,7 @@ func (e *GenesisMismatchError) Error() string {
 // The returned chain configuration is never nil.
 func SetupGenesisBlock(db etruedb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
-		return params.AllMinervaProtocolChanges, common.Hash{}, common.Hash{}, errGenesisNoConfig
+		return params.AllMinervaProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
 
 	fastConfig, fastHash, fastErr := setupFastGenesisBlock(db, genesis)

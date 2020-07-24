@@ -272,9 +272,8 @@ func toBlockNumArg(number *big.Int) string {
 	}
 	return hexutil.EncodeBig(number)
 }
-
 type rpcProgress struct {
-	StartingFastBlock uint64 // Snail Block number where sync began
+	StartingFastBlock uint64 // Block number where sync began
 	CurrentFastBlock  uint64 // Current block number where sync is at
 	HighestFastBlock  uint64 // Highest alleged block number in the chain
 

@@ -17,14 +17,9 @@
 package core
 
 import (
-	"github.com/truechain/truechain-engineering-code/common"
-	"github.com/truechain/truechain-engineering-code/consensus"
 	"github.com/truechain/truechain-engineering-code/core/state"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/core/vm"
-	"github.com/truechain/truechain-engineering-code/event"
-	"github.com/truechain/truechain-engineering-code/params"
-	"math/big"
 )
 
 // Validator is an interface which defines the standard for block validation. It

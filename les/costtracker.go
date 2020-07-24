@@ -1,4 +1,4 @@
-// Copyright 2016 The go-ethereum Authors
+// Copyright 2019 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -9,7 +9,7 @@
 // The go-ethereum library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more detailct.
+// GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
@@ -18,16 +18,17 @@ package les
 
 import (
 	"encoding/binary"
-	"github.com/truechain/truechain-engineering-code/etrue"
 	"math"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/truechain/truechain-engineering-code/common/mclock"
-	"github.com/truechain/truechain-engineering-code/log"
-	"github.com/truechain/truechain-engineering-code/etruedb"
+	"github.com/truechain/truechain-engineering-code/eth"
+	"github.com/truechain/truechain-engineering-code/ethdb"
 	"github.com/truechain/truechain-engineering-code/les/flowcontrol"
+	"github.com/truechain/truechain-engineering-code/log"
+	"github.com/truechain/truechain-engineering-code/metrics"
 )
 
 const makeCostStats = false // make request cost statistics during operation
@@ -35,70 +36,59 @@ const makeCostStats = false // make request cost statistics during operation
 var (
 	// average request cost estimates based on serving time
 	reqAvgTimeCost = requestCostTable{
-		GetFastBlockHeadersMsg:  {150000, 30000},
-		GetFastBlockBodiesMsg:   {0, 700000},
-		GetSnailBlockHeadersMsg: {150000, 30000},
-		GetSnailBlockBodiesMsg:  {0, 7000000},
-		GetFruitBodiesMsg:       {0, 700000},
-		GetReceiptsMsg:          {0, 1000000},
-		GetCodeMsg:              {0, 450000},
-		GetProofsV2Msg:          {0, 600000},
-		GetHelperTrieProofsMsg:  {0, 1000000},
-		SendTxV2Msg:             {0, 450000},
-		GetTxStatusMsg:          {0, 250000},
+		GetBlockHeadersMsg:     {150000, 30000},
+		GetBlockBodiesMsg:      {0, 700000},
+		GetReceiptsMsg:         {0, 1000000},
+		GetCodeMsg:             {0, 450000},
+		GetProofsV2Msg:         {0, 600000},
+		GetHelperTrieProofsMsg: {0, 1000000},
+		SendTxV2Msg:            {0, 450000},
+		GetTxStatusMsg:         {0, 250000},
 	}
 	// maximum incoming message size estimates
 	reqMaxInSize = requestCostTable{
-		GetFastBlockHeadersMsg:  {40, 0},
-		GetFastBlockBodiesMsg:   {0, 40},
-		GetSnailBlockHeadersMsg: {40, 0},
-		GetSnailBlockBodiesMsg:  {0, 400},
-		GetFruitBodiesMsg:       {0, 40},
-		GetReceiptsMsg:          {0, 40},
-		GetCodeMsg:              {0, 80},
-		GetProofsV2Msg:          {0, 80},
-		GetHelperTrieProofsMsg:  {0, 20},
-		SendTxV2Msg:             {0, 16500},
-		GetTxStatusMsg:          {0, 50},
+		GetBlockHeadersMsg:     {40, 0},
+		GetBlockBodiesMsg:      {0, 40},
+		GetReceiptsMsg:         {0, 40},
+		GetCodeMsg:             {0, 80},
+		GetProofsV2Msg:         {0, 80},
+		GetHelperTrieProofsMsg: {0, 20},
+		SendTxV2Msg:            {0, 16500},
+		GetTxStatusMsg:         {0, 50},
 	}
 	// maximum outgoing message size estimates
 	reqMaxOutSize = requestCostTable{
-		GetFastBlockHeadersMsg:  {0, 556},
-		GetFastBlockBodiesMsg:   {0, 100000},
-		GetSnailBlockHeadersMsg: {0, 556},
-		GetSnailBlockBodiesMsg:  {0, 1000000},
-		GetFruitBodiesMsg:       {0, 100000},
-		GetReceiptsMsg:          {0, 200000},
-		GetCodeMsg:              {0, 50000},
-		GetProofsV2Msg:          {0, 4000},
-		GetHelperTrieProofsMsg:  {0, 4000},
-		SendTxV2Msg:             {0, 100},
-		GetTxStatusMsg:          {0, 100},
+		GetBlockHeadersMsg:     {0, 556},
+		GetBlockBodiesMsg:      {0, 100000},
+		GetReceiptsMsg:         {0, 200000},
+		GetCodeMsg:             {0, 50000},
+		GetProofsV2Msg:         {0, 4000},
+		GetHelperTrieProofsMsg: {0, 4000},
+		SendTxV2Msg:            {0, 100},
+		GetTxStatusMsg:         {0, 100},
 	}
 	// request amounts that have to fit into the minimum buffer size minBufferMultiplier times
 	minBufferReqAmount = map[uint64]uint64{
-		GetFastBlockHeadersMsg:  192,
-		GetFastBlockBodiesMsg:   1,
-		GetSnailBlockHeadersMsg: 192,
-		GetSnailBlockBodiesMsg:  128,
-		GetFruitBodiesMsg:       1,
-		GetReceiptsMsg:          1,
-		GetCodeMsg:              1,
-		GetProofsV2Msg:          1,
-		GetHelperTrieProofsMsg:  16,
-		SendTxV2Msg:             8,
-		GetTxStatusMsg:          64,
+		GetBlockHeadersMsg:     192,
+		GetBlockBodiesMsg:      1,
+		GetReceiptsMsg:         1,
+		GetCodeMsg:             1,
+		GetProofsV2Msg:         1,
+		GetHelperTrieProofsMsg: 16,
+		SendTxV2Msg:            8,
+		GetTxStatusMsg:         64,
 	}
 	minBufferMultiplier = 3
 )
 
 const (
-	maxCostFactor    = 2 // ratio of maximum and average cost estimates
+	maxCostFactor    = 2    // ratio of maximum and average cost estimates
+	bufLimitRatio    = 6000 // fixed bufLimit/MRR ratio
 	gfUsageThreshold = 0.5
 	gfUsageTC        = time.Second
 	gfRaiseTC        = time.Second * 200
 	gfDropTC         = time.Second * 50
-	gfDbKey          = "_globalCostFactorV3"
+	gfDbKey          = "_globalCostFactorV6"
 )
 
 // costTracker is responsible for calculating costs and cost estimates on the
@@ -125,7 +115,7 @@ const (
 // changes in the cost factor can be applied immediately without always notifying
 // the clients about the changed cost tables.
 type costTracker struct {
-	db     etruedb.Database
+	db     ethdb.Database
 	stopCh chan chan struct{}
 
 	inSizeFactor  float64
@@ -139,17 +129,27 @@ type costTracker struct {
 	totalRechargeCh chan uint64
 
 	stats map[uint64][]uint64 // Used for testing purpose.
+
+	// TestHooks
+	testing      bool            // Disable real cost evaluation for testing purpose.
+	testCostList RequestCostList // Customized cost table for testing purpose.
 }
 
 // newCostTracker creates a cost tracker and loads the cost factor statistics from the database.
 // It also returns the minimum capacity that can be assigned to any peer.
-func newCostTracker(db etruedb.Database, config *etrue.Config) (*costTracker, uint64) {
+func newCostTracker(db ethdb.Database, config *eth.Config) (*costTracker, uint64) {
 	utilTarget := float64(config.LightServ) * flowcontrol.FixedPointMultiplier / 100
 	ct := &costTracker{
 		db:         db,
 		stopCh:     make(chan chan struct{}),
 		reqInfoCh:  make(chan reqInfo, 100),
 		utilTarget: utilTarget,
+	}
+	if config.LightIngress > 0 {
+		ct.inSizeFactor = utilTarget / float64(config.LightIngress)
+	}
+	if config.LightEgress > 0 {
+		ct.outSizeFactor = utilTarget / float64(config.LightEgress)
 	}
 	if makeCostStats {
 		ct.stats = make(map[uint64][]uint64)
@@ -227,6 +227,9 @@ type reqInfo struct {
 	// servingTime is the CPU time corresponding to the actual processing of
 	// the request.
 	servingTime float64
+
+	// msgCode indicates the type of request.
+	msgCode uint64
 }
 
 // gfLoop starts an event loop which updates the global cost factor which is
@@ -266,14 +269,48 @@ func (ct *costTracker) gfLoop() {
 			log.Debug("global cost factor saved", "value", factor)
 		}
 		saveTicker := time.NewTicker(time.Minute * 10)
+		defer saveTicker.Stop()
 
 		for {
 			select {
 			case r := <-ct.reqInfoCh:
+				relCost := int64(factor * r.servingTime * 100 / r.avgTimeCost) // Convert the value to a percentage form
+
+				// Record more metrics if we are debugging
+				if metrics.EnabledExpensive {
+					switch r.msgCode {
+					case GetBlockHeadersMsg:
+						relativeCostHeaderHistogram.Update(relCost)
+					case GetBlockBodiesMsg:
+						relativeCostBodyHistogram.Update(relCost)
+					case GetReceiptsMsg:
+						relativeCostReceiptHistogram.Update(relCost)
+					case GetCodeMsg:
+						relativeCostCodeHistogram.Update(relCost)
+					case GetProofsV2Msg:
+						relativeCostProofHistogram.Update(relCost)
+					case GetHelperTrieProofsMsg:
+						relativeCostHelperProofHistogram.Update(relCost)
+					case SendTxV2Msg:
+						relativeCostSendTxHistogram.Update(relCost)
+					case GetTxStatusMsg:
+						relativeCostTxStatusHistogram.Update(relCost)
+					}
+				}
+				// SendTxV2 and GetTxStatus requests are two special cases.
+				// All other requests will only put pressure on the database, and
+				// the corresponding delay is relatively stable. While these two
+				// requests involve txpool query, which is usually unstable.
+				//
+				// TODO(rjl493456442) fixes this.
+				if r.msgCode == SendTxV2Msg || r.msgCode == GetTxStatusMsg {
+					continue
+				}
 				requestServedMeter.Mark(int64(r.servingTime))
-				requestEstimatedMeter.Mark(int64(r.avgTimeCost / factor))
 				requestServedTimer.Update(time.Duration(r.servingTime))
-				relativeCostHistogram.Update(int64(r.avgTimeCost / factor / r.servingTime))
+				requestEstimatedMeter.Mark(int64(r.avgTimeCost / factor))
+				requestEstimatedTimer.Update(time.Duration(r.avgTimeCost / factor))
+				relativeCostHistogram.Update(relCost)
 
 				now := mclock.Now()
 				dt := float64(now - expUpdate)
@@ -324,12 +361,12 @@ func (ct *costTracker) gfLoop() {
 							default:
 							}
 						}
+						globalFactorGauge.Update(int64(1000 * factor))
 						log.Debug("global cost factor updated", "factor", factor)
 					}
 				}
 				recentServedGauge.Update(int64(recentTime))
 				recentEstimatedGauge.Update(int64(recentAvg))
-				totalRechargeGauge.Update(int64(totalRecharge))
 
 			case <-saveTicker.C:
 				saveCostFactor()
@@ -376,7 +413,7 @@ func (ct *costTracker) updateStats(code, amount, servingTime, realCost uint64) {
 	avg := reqAvgTimeCost[code]
 	avgTimeCost := avg.baseCost + amount*avg.reqCost
 	select {
-	case ct.reqInfoCh <- reqInfo{float64(avgTimeCost), float64(servingTime)}:
+	case ct.reqInfoCh <- reqInfo{float64(avgTimeCost), float64(servingTime), code}:
 	default:
 	}
 	if makeCostStats {

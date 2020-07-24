@@ -58,31 +58,4 @@ func seedHash(block uint64) []byte {
 	return seed
 }
 
-// truehash aggregates data from the full dataset in order to produce our final
-// value for a particular header hash and nonce.
-func truehash(plookup []uint64, hash []byte, nonce uint64) ([]byte, []byte) {
-	// Calculate the number of theoretical rows (we use one buffer nonetheless)
-	return fchainmining(plookup[:], hash[:], nonce)
-}
-
-// truehashLight aggregates data from the full dataset (using only a small
-// in-memory cache) in order to produce our final value for a particular header
-// hash and nonce.
-func truehashLight(dataset []uint64, hash []byte, nonce uint64) ([]byte, []byte) {
-	return truehash(dataset[:], hash[:], nonce)
-}
-
-func TruehashLight(dataset []uint64, hash []byte, nonce uint64) ([]byte, []byte) {
-	return truehash(dataset[:], hash[:], nonce)
-}
-
-// truehashFull aggregates data from the full dataset (using the full in-memory
-// dataset) in order to produce our final value for a particular header hash and
-// nonce.
-
-func truehashFull(dataset []uint64, hash []byte, nonce uint64) ([]byte, []byte) {
-
-	return truehash(dataset[:], hash[:], nonce)
-}
-
 const maxEpoch = 2048

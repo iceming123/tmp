@@ -1,4 +1,4 @@
-// Copyright 2018 The go-ethereum Authors
+// Copyright 2019 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -17,12 +17,9 @@
 package les
 
 import (
-	"github.com/truechain/truechain-engineering-code/common"
-	"github.com/truechain/truechain-engineering-code/log"
 	"sort"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/truechain/truechain-engineering-code/common/mclock"
 	"github.com/truechain/truechain-engineering-code/common/prque"
@@ -58,12 +55,11 @@ type servingQueue struct {
 type servingTask struct {
 	sq                                       *servingQueue
 	servingTime, timeAdded, maxTime, expTime uint64
-	peer                                     *peer
+	peer                                     *clientPeer
 	priority                                 int64
 	biasAdded                                bool
 	token                                    runToken
 	tokenCh                                  chan runToken
-	msgCode                                  uint64
 }
 
 // runToken received by servingTask.start allows the task to run. Closing the
@@ -146,14 +142,13 @@ func newServingQueue(suspendBias int64, utilTarget float64) *servingQueue {
 }
 
 // newTask creates a new task with the given priority
-func (sq *servingQueue) newTask(peer *peer, maxTime uint64, priority int64, code uint64) *servingTask {
+func (sq *servingQueue) newTask(peer *clientPeer, maxTime uint64, priority int64) *servingTask {
 	return &servingTask{
 		sq:       sq,
 		peer:     peer,
 		maxTime:  maxTime,
 		expTime:  maxTime,
 		priority: priority,
-		msgCode:  code,
 	}
 }
 
@@ -192,7 +187,7 @@ func (sq *servingQueue) threadController() {
 type (
 	// peerTasks lists the tasks received from a given peer when selecting peers to freeze
 	peerTasks struct {
-		peer     *peer
+		peer     *clientPeer
 		list     []*servingTask
 		sumTime  uint64
 		priority float64
@@ -216,7 +211,7 @@ func (l peerList) Swap(i, j int) {
 // freezePeers selects the peers with the worst priority queued tasks and freezes
 // them until burstTime goes under burstDropLimit or all peers are frozen
 func (sq *servingQueue) freezePeers() {
-	peerMap := make(map[*peer]*peerTasks)
+	peerMap := make(map[*clientPeer]*peerTasks)
 	var peerList peerList
 	if sq.best != nil {
 		sq.queue.Push(sq.best, sq.best.priority)
@@ -244,7 +239,7 @@ func (sq *servingQueue) freezePeers() {
 	drop := true
 	for _, tasks := range peerList {
 		if drop {
-			tasks.peer.freezeClient()
+			tasks.peer.freeze()
 			tasks.peer.fcClient.Freeze()
 			sq.queuedTime -= tasks.sumTime
 			sqQueuedGauge.Update(int64(sq.queuedTime))
@@ -295,8 +290,7 @@ func (sq *servingQueue) addTask(task *servingTask) {
 	sqServedGauge.Update(int64(sq.recentTime))
 	sqQueuedGauge.Update(int64(sq.queuedTime))
 	if sq.recentTime+sq.queuedTime > sq.burstLimit {
-		log.Debug("addTask", "code", task.msgCode, "priority", task.priority, "recentTime", common.PrettyDuration(time.Duration(sq.recentTime)), "queuedTime", common.PrettyDuration(time.Duration(sq.queuedTime)), "burstLimit", common.PrettyDuration(time.Duration(sq.burstLimit)))
-		//sq.freezePeers()
+		sq.freezePeers()
 	}
 }
 

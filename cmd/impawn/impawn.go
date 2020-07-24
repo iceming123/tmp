@@ -46,7 +46,6 @@ const (
 	datadirPrivateKey      = "key"
 	datadirDefaultKeyStore = "keystore"
 	ImpawnAmount           = 20000
-	SnailRewardInterval    = 14
 )
 
 func impawn(ctx *cli.Context) error {
