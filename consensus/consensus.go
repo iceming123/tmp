@@ -58,6 +58,7 @@ type RewardInfosAccess interface {
 	SetRewardInfos(number uint64,infos *types.ChainReward) error
 }
 
+
 // Engine is an algorithm agnostic consensus engine.
 type Engine interface {
 	SetElection(e CommitteeElection)

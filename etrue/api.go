@@ -35,7 +35,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/crypto"
 	"github.com/truechain/truechain-engineering-code/internal/trueapi"
 	"github.com/truechain/truechain-engineering-code/log"
-	"github.com/truechain/truechain-engineering-code/miner"
 	"github.com/truechain/truechain-engineering-code/params"
 	"github.com/truechain/truechain-engineering-code/rlp"
 	"github.com/truechain/truechain-engineering-code/rpc"
@@ -203,13 +202,6 @@ func NewPublicDebugAPI(etrue *Truechain) *PublicDebugAPI {
 
 // DumpBlock retrieves the entire state of the database at a given block.
 func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
-	if blockNr == rpc.PendingBlockNumber {
-		// If we're dumping the pending state, we need to request
-		// both the pending block as well as the pending state from
-		// the miner and operate on those
-		_, stateDb := api.etrue.miner.Pending()
-		return stateDb.RawDump(), nil
-	}
 	var block *types.Block
 	if blockNr == rpc.LatestBlockNumber {
 		block = api.etrue.blockchain.CurrentBlock()

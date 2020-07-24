@@ -125,7 +125,6 @@ func (pm *ProtocolManager) txsyncLoop64() {
 		}
 		return nil
 	}
-
 	for {
 		select {
 		case s := <-pm.txsyncCh:

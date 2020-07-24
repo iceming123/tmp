@@ -25,9 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
-
 	"bytes"
-
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
 	"github.com/truechain/truechain-engineering-code/rlp"

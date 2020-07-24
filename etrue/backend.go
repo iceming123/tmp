@@ -27,7 +27,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-
 	"github.com/truechain/truechain-engineering-code/accounts"
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
@@ -65,19 +64,15 @@ type LesServer interface {
 type Truechain struct {
 	config      *Config
 	chainConfig *params.ChainConfig
-
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Truechain
-
 	// Handlers
 	txPool *core.TxPool
 	agent    *PbftAgent
 	election *elect.Election
-
 	blockchain      *core.BlockChain
 	protocolManager *ProtocolManager
 	lesServer       LesServer
-
 	// DB interfaces
 	chainDb etruedb.Database // Block chain database
 

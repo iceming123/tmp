@@ -33,9 +33,7 @@ import (
 	"github.com/truechain/truechain-engineering-code/core"
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/etrue/downloader"
-	"github.com/truechain/truechain-engineering-code/etrue/fastdownloader"
 	"github.com/truechain/truechain-engineering-code/etrue/fetcher"
-	"github.com/truechain/truechain-engineering-code/etrue/fetcher/snail"
 	"github.com/truechain/truechain-engineering-code/etruedb"
 	"github.com/truechain/truechain-engineering-code/event"
 	"github.com/truechain/truechain-engineering-code/log"
@@ -54,7 +52,6 @@ const (
 	txChanSize    = 4096
 	blockChanSize = 256
 	nodeChanSize  = 256
-
 	minBroadcastPeers = 4
 )
 
@@ -107,12 +104,9 @@ type ProtocolManager struct {
 	// Test fields or hooks
 	broadcastTxAnnouncesOnly bool // Testing field, disable transaction propagation
 	SubProtocols             []p2p.Protocol
-
 	chainconfig *params.ChainConfig
-
 	minedFastCh  chan types.PbftSignEvent
 	minedFastSub event.Subscription
-
 	pbNodeInfoCh  chan types.NodeInfoEvent
 	pbNodeInfoSub event.Subscription
 }

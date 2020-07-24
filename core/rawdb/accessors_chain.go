@@ -378,7 +378,6 @@ func DeleteReceipts(db DatabaseDeleter, hash common.Hash, number uint64) {
 		log.Crit("Failed to delete block receipts", "err", err)
 	}
 }
-
 // ReadBlock retrieves an entire block corresponding to the hash, assembling it
 // back from the stored header and body. If either the header or body could not
 // be retrieved nil is returned.
