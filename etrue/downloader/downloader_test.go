@@ -206,8 +206,8 @@ func (dl *downloadTester) CurrentBlock() *types.Block {
 	return dl.genesis
 }
 
-// CurrentFastBlock retrieves the current head fast-sync block from the canonical chain.
-func (dl *downloadTester) CurrentFastBlock() *types.Block {
+// CurrentBlock retrieves the current head fast-sync block from the canonical chain.
+func (dl *downloadTester) CurrentBlock() *types.Block {
 	dl.lock.RLock()
 	defer dl.lock.RUnlock()
 

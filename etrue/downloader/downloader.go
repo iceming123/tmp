@@ -93,6 +93,8 @@ var (
 	errTooOld                  = errors.New("peer doesn't speak recent enough protocol version (need version >= 62)")
 )
 
+
+
 type Downloader struct {
 	// WARNING: The `rttEstimate` and `rttConfidence` fields are accessed atomically.
 	// On 32 bit platforms, only 64-bit aligned fields can be atomic. The struct is
@@ -107,13 +109,10 @@ type Downloader struct {
 	checkpoint uint64         // Checkpoint block number to enforce head against (e.g. fast sync
 	genesis    uint64         // Genesis block number to limit sync to (e.g. light client CHT)
 	queue      *queue         // Scheduler for selecting the hashes to download
-	peers      *etrue.PeerSet // Set of active peers from which download can proceed
+	peers      *peerSet // Set of active peers from which download can proceed
 
 	stateDB etruedb.Database
 	stateBloom *trie.SyncBloom // Bloom filter for fast trie node existence checks
-
-	rttEstimate   uint64 // Round trip time to target for download requests
-	rttConfidence uint64 // Confidence in the estimated RTT (unit: millionths to allow atomic ops)
 
 	// Statistics
 	syncStatsChainOrigin uint64       // Origin block number where syncing started at
@@ -125,7 +124,7 @@ type Downloader struct {
 	blockchain BlockChain
 
 	// Callbacks
-	dropPeer etrue.PeerDropFn // Drops a peer for misbehaving
+	dropPeer peerDropFn // Drops a peer for misbehaving
 
 	// Status
 	synchroniseMock func(id string, hash common.Hash) error // Replacement for synchronise during testing
@@ -197,8 +196,8 @@ type BlockChain interface {
 	// CurrentBlock retrieves the head block from the local chain.
 	CurrentBlock() *types.Block
 
-	// CurrentFastBlock retrieves the head fast block from the local chain.
-	CurrentFastBlock() *types.Block
+	// CurrentBlock retrieves the head fast block from the local chain.
+	CurrentBlock() *types.Block
 
 	// FastSyncCommitHead directly commits the head block to a certain entity.
 	FastSyncCommitHead(common.Hash) error
@@ -264,14 +263,12 @@ func (d *Downloader) Progress() truechain.SyncProgress {
 	case d.blockchain != nil && d.mode == FullSync:
 		current = d.blockchain.CurrentBlock().NumberU64()
 	case d.blockchain != nil && d.mode == FastSync:
-		current = d.blockchain.CurrentFastBlock().NumberU64()
+		current = d.blockchain.CurrentBlock().NumberU64()
 	case d.lightchain != nil:
 		current = d.lightchain.CurrentHeader().Number.Uint64()
 	default:
 		log.Error("Unknown downloader chain/mode combo", "light", d.lightchain != nil, "full", d.blockchain != nil, "mode", d.mode)
 	}
-	f_prog := d.fastDown.Progress()
-
 	return truechain.SyncProgress{
 		StartingBlock: d.syncStatsChainOrigin,
 		CurrentBlock:  current,
@@ -280,6 +277,8 @@ func (d *Downloader) Progress() truechain.SyncProgress {
 		KnownStates:   d.syncStatsState.processed + d.syncStatsState.pending,
 	}
 }
+
+
 
 // Synchronising returns whether the downloader is currently retrieving blocks.
 func (d *Downloader) Synchronising() bool {
@@ -696,7 +695,7 @@ func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header)
 	case FullSync:
 		localHeight = d.blockchain.CurrentBlock().NumberU64()
 	case FastSync:
-		localHeight = d.blockchain.CurrentFastBlock().NumberU64()
+		localHeight = d.blockchain.CurrentBlock().NumberU64()
 	default:
 		localHeight = d.lightchain.CurrentHeader().Number.Uint64()
 	}
@@ -988,7 +987,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, pivot uint64) 
 					if d.mode == LightSync {
 						head = d.lightchain.CurrentHeader().Number.Uint64()
 					} else {
-						head = d.blockchain.CurrentFastBlock().NumberU64()
+						head = d.blockchain.CurrentBlock().NumberU64()
 						if full := d.blockchain.CurrentBlock().NumberU64(); head < full {
 							head = full
 						}
@@ -1355,13 +1354,13 @@ func (d *Downloader) processHeaders(origin uint64, pivot uint64, td *big.Int) er
 			}
 			lastHeader, lastFastBlock, lastBlock := d.lightchain.CurrentHeader().Number, common.Big0, common.Big0
 			if d.mode != LightSync {
-				lastFastBlock = d.blockchain.CurrentFastBlock().Number()
+				lastFastBlock = d.blockchain.CurrentBlock().Number()
 				lastBlock = d.blockchain.CurrentBlock().Number()
 			}
 			d.lightchain.Rollback(hashes)
 			curFastBlock, curBlock := common.Big0, common.Big0
 			if d.mode != LightSync {
-				curFastBlock = d.blockchain.CurrentFastBlock().Number()
+				curFastBlock = d.blockchain.CurrentBlock().Number()
 				curBlock = d.blockchain.CurrentBlock().Number()
 			}
 			log.Warn("Rolled back headers", "count", len(hashes),

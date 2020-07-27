@@ -112,7 +112,6 @@ type BlockChain struct {
 	chainSideFeed    event.Feed
 	chainHeadFeed    event.Feed
 	logsFeed         event.Feed
-	blockProcFeed    event.Feed
 	RewardNumberFeed event.Feed
 	scope            event.SubscriptionScope
 	genesisBlock     *types.Block
@@ -123,18 +122,14 @@ type BlockChain struct {
 	checkpoint       int          // checkpoint counts towards the new checkpoint
 	currentBlock     atomic.Value // Current head of the block chain
 	currentFastBlock atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
-	currentReward    atomic.Value // Current head of the currentReward
 
-	stateCache       state.Database // State database to reuse between imports (contains state cache)
-	bodyCache        *lru.Cache     // Cache for the most recent block bodies
-	signCache        *lru.Cache     // Cache for the most recent block bodies
-	bodyRLPCache     *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	receiptsCache    *lru.Cache     // Cache for the most recent receipts per block
-	blockCache       *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks     *lru.Cache     // future blocks are blocks added for later processing
-	rewardCache      *lru.Cache
-	rewardinfoCache  *lru.Cache
-	balanceInfoCache *lru.Cache
+	stateCache    state.Database // State database to reuse between imports (contains state cache)
+	bodyCache     *lru.Cache     // Cache for the most recent block bodies
+	signCache     *lru.Cache     // Cache for the most recent block bodies
+	bodyRLPCache  *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
+	receiptsCache *lru.Cache     // Cache for the most recent receipts per block
+	blockCache    *lru.Cache     // Cache for the most recent entire blocks
+	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -176,9 +171,6 @@ func NewBlockChain(db etruedb.Database, cacheConfig *CacheConfig,
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
 	badBlocks, _ := lru.New(badBlockLimit)
 	signCache, _ := lru.New(bodyCacheLimit)
-	rewardCache, _ := lru.New(bodyCacheLimit)
-	rewardinfoCache, _ := lru.New(50)
-	balanceInfoCache, _ := lru.New(balanceCacheLimit)
 
 	bc := &BlockChain{
 		chainConfig:      chainConfig,
@@ -193,9 +185,6 @@ func NewBlockChain(db etruedb.Database, cacheConfig *CacheConfig,
 		receiptsCache:    receiptsCache,
 		blockCache:       blockCache,
 		futureBlocks:     futureBlocks,
-		rewardCache:      rewardCache,
-		rewardinfoCache:  rewardinfoCache,
-		balanceInfoCache: balanceInfoCache,
 		engine:           engine,
 		vmConfig:         vmConfig,
 		badBlocks:        badBlocks,
@@ -293,7 +282,6 @@ func (bc *BlockChain) loadLastState() error {
 		}
 	}
 
-	// Restore the last known currentReward
 	bc.lastBlock.Store(currentBlock)
 	if head := rawdb.ReadLastBlockHash(bc.db); head != (common.Hash{}) {
 		if block := bc.GetBlockByHash(head); block != nil {
@@ -339,9 +327,6 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	bc.blockCache.Purge()
 	bc.futureBlocks.Purge()
 	bc.signCache.Purge()
-	bc.rewardCache.Purge()
-	bc.rewardinfoCache.Purge()
-	bc.balanceInfoCache.Purge()
 
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
 		if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
@@ -433,13 +418,6 @@ func (bc *BlockChain) CurrentCommitHeight() *big.Int {
 	//commitHeight := bc.CurrentBlock().Number().Uint64() / uint64(blockDeleteHeight) * blockDeleteHeight
 	commitHeight := uint64(0)
 	return new(big.Int).SetUint64(commitHeight)
-}
-
-func (bc *BlockChain) CurrentReward() *types.BlockReward {
-	if bc.currentReward.Load() == nil {
-		return nil
-	}
-	return bc.currentReward.Load().(*types.BlockReward)
 }
 
 // CurrentFastBlock retrieves the current fast-sync head block of the canonical
@@ -616,7 +594,7 @@ func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock
 }
 
-// GetBody retrieves a block body (transactions and uncles) from the database by
+// GetBody retrieves a block body (transactions and signs) from the database by
 // hash, caching it if found.
 func (bc *BlockChain) GetBody(hash common.Hash) *types.Body {
 	// Short circuit if the body's already in the cache, retrieve otherwise
@@ -897,6 +875,17 @@ func SetReceiptsData(config *params.ChainConfig, block *types.Block, receipts ty
 	return nil
 }
 
+// HasFastBlock checks if a fast block is fully present in the database or not.
+func (bc *BlockChain) HasFastBlock(hash common.Hash, number uint64) bool {
+	if !bc.HasBlock(hash, number) {
+		return false
+	}
+	if bc.receiptsCache.Contains(hash) {
+		return true
+	}
+	return rawdb.HasReceipts(bc.db, hash, number)
+}
+
 // InsertReceiptChain attempts to complete an already existing header chain with
 // transaction and receipt data.
 func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain []types.Receipts) (int, error) {
@@ -1013,14 +1002,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	triedb := bc.stateCache.TrieDB()
 
-	balanceC := &types.BlockBalance{Balance: types.ToBalanceInfos(state.BalancesChange())}
-	// write balance change to memory
-	bc.balanceInfoCache.Add(block.Number().Uint64(), balanceC)
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.Disabled {
-		// write balance change to lvdb
-		rawdb.WriteBalanceInfo(bc.db, block.Number().Uint64(), balanceC)
-
 		if err := triedb.Commit(root, false); err != nil {
 			return NonStatTy, err
 		}
@@ -1118,8 +1101,6 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	if len(chain) == 0 {
 		return 0, nil
 	}
-	bc.blockProcFeed.Send(true)
-	defer bc.blockProcFeed.Send(false)
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
 		if chain[i].NumberU64() != chain[i-1].NumberU64()+1 || chain[i].ParentHash() != chain[i-1].Hash() {
@@ -1246,7 +1227,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		}
 		// Process block using the parent state as reference point.
 		t0 := time.Now()
-		receipts, logs, usedGas, infos, err := bc.processor.Process(block, state, bc.vmConfig)
+		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
 		t1 := time.Now()
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -1265,10 +1246,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		t3 := time.Now()
 		if err != nil {
 			return it.index, events, coalescedLogs, err
-		}
-		bc.engine.FinalizeCommittee(block)
-		if infos != nil {
-			bc.WriteRewardInfos(infos)
 		}
 		blockInsertTimer.UpdateSince(start)
 		blockExecutionTimer.Update(t1.Sub(t0))
@@ -1374,7 +1351,13 @@ func (bc *BlockChain) insertSidechain(it *insertIterator) (int, []interface{}, [
 		hashes  []common.Hash
 		numbers []uint64
 	)
-	parent := bc.GetHeader(it.previous().Hash(), it.previous().NumberU64())
+	prvBlock := it.previous()
+	if prvBlock == nil {
+		log.Info("insertSidechain pre", "current", current, "block", block, "index", it.index, "blocks", it.chain)
+		return it.index, nil, nil, errors.New("missing parent")
+	}
+
+	parent := bc.GetHeader(prvBlock.Hash(), prvBlock.NumberU64())
 	for parent != nil && !bc.HasState(parent.Root) {
 		hashes = append(hashes, parent.Hash())
 		numbers = append(numbers, parent.Number.Uint64())
@@ -1725,26 +1708,6 @@ func (bc *BlockChain) SubscribeChainSideEvent(ch chan<- types.FastChainSideEvent
 // SubscribeLogsEvent registers a subscription of []*types.Log.
 func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
-}
-
-func (bc *BlockChain) GetBlockReward(snumber uint64) *types.BlockReward {
-
-	if rewards_, ok := bc.rewardCache.Get(snumber); ok {
-		rewards := rewards_.(*types.BlockReward)
-		if bc.CurrentBlock().NumberU64() >= rewards.FastNumber.Uint64() {
-			return rewards
-		}
-		return nil
-	}
-
-	rewards := rawdb.ReadBlockReward(bc.db, snumber)
-
-	if rewards != nil && bc.CurrentBlock().NumberU64() >= rewards.FastNumber.Uint64() {
-		bc.rewardCache.Add(snumber, rewards)
-		return rewards
-	}
-
-	return nil
 }
 
 func (bc *BlockChain) GetBlockNumber() uint64 {
