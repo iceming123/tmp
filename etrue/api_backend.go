@@ -173,14 +173,6 @@ func (b *TrueAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscr
 	return b.etrue.BlockChain().SubscribeLogsEvent(ch)
 }
 
-// GetReward returns the Reward info by number in fastchain
-func (b *TrueAPIBackend) GetReward(number int64) *types.BlockReward {
-	if number < 0 {
-		return b.etrue.blockchain.CurrentReward()
-	}
-	return b.etrue.blockchain.GetBlockReward(uint64(number))
-}
-
 func (b *TrueAPIBackend) GetChainRewardContent(blockNr rpc.BlockNumber) *types.ChainReward {
 	sheight := uint64(blockNr)
 	return b.etrue.blockchain.GetRewardInfos(sheight)

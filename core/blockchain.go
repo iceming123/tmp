@@ -1227,7 +1227,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		}
 		// Process block using the parent state as reference point.
 		t0 := time.Now()
-		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
+		receipts, logs, usedGas,_, err := bc.processor.Process(block, state, bc.vmConfig)
 		t1 := time.Now()
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -1753,19 +1753,14 @@ func (bc *BlockChain) SetCommitteeInfo(hash common.Hash, number uint64, infos []
 // SubscribeBlockProcessingEvent registers a subscription of bool where true means
 // block processing has started while false means it has stopped.
 func (bc *BlockChain) SubscribeBlockProcessingEvent(ch chan<- bool) event.Subscription {
-	return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
+	// return bc.scope.Track(bc.blockProcFeed.Subscribe(ch))
+	return nil
 }
 func (bc *BlockChain) GetRewardInfos(number uint64) *types.ChainReward {
-	// Short circuit if the td's already in the cache, retrieve otherwise
-	if cached, ok := bc.rewardinfoCache.Get(number); ok {
-		return types.CloneChainReward(cached.(*types.ChainReward))
-	}
 	infos := rawdb.ReadRewardInfo(bc.db, number)
 	if infos == nil {
 		return nil
 	}
-	// Cache the found body for next time and return
-	bc.rewardinfoCache.Add(number, types.CloneChainReward(infos))
 	return infos
 }
 func (bc *BlockChain) WriteRewardInfos(infos *types.ChainReward) error {
@@ -1775,19 +1770,12 @@ func (bc *BlockChain) WriteRewardInfos(infos *types.ChainReward) error {
 }
 
 func (bc *BlockChain) GetBalanceInfos(number uint64) *types.BlockBalance {
-	// Short circuit if the td's already in the cache, retrieve otherwise
-	cached, ok := bc.balanceInfoCache.Get(number)
-	if ok {
-		return cached.(*types.BlockBalance)
-	}
 
 	if bc.cacheConfig.Disabled {
 		infos := rawdb.ReadBalanceInfo(bc.db, number)
 		if infos == nil {
 			return nil
 		}
-		// Cache the found body for next time and return
-		bc.balanceInfoCache.Add(number, infos)
 		return infos
 	}
 

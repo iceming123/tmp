@@ -5494,12 +5494,6 @@ require = (function e(t, n, r) {
                 outputFormatter: formatters.outputBlockFormatter
             });
 
-            var getRewardBlock = new Method({
-                name: 'getRewardBlock',
-                call: 'etrue_getRewardBlock',
-                params: 1,
-                inputFormatter: [formatters.inputDefaultBlockNumberFormatter]
-            });
             var getChainRewardContent = new Method({
                 name: 'getChainRewardContent',
                 call: 'etrue_getChainRewardContent',
@@ -5680,7 +5674,6 @@ require = (function e(t, n, r) {
                 getStorageAt,
                 getCode,
                 getBlock,
-                getRewardBlock,
                 getChainRewardContent,
                 getStateChangeByFastNumber,
                 getUncle,

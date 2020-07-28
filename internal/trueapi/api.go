@@ -927,20 +927,6 @@ func (s *PublicBlockChainAPI) rpcOutputBlock(b *types.Block, inclTx bool, fullTx
 	// fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash()))
 	return fields, err
 }
-
-// GetRewardBlock return the fast block position where the given snail block is rewarded.
-func (s *PublicBlockChainAPI) GetRewardBlock(ctx context.Context, blockNr rpc.BlockNumber) (map[string]interface{}, error) {
-	rew := s.b.GetReward(blockNr.Int64())
-	if rew == nil {
-		return nil, nil
-	}
-	block, err := s.b.GetBlock(ctx, rew.FastHash)
-	if block != nil {
-		return s.rpcOutputBlock(block, true, false)
-	}
-	return nil, err
-}
-
 func (s *PublicBlockChainAPI) GetChainRewardContent(blockNr rpc.BlockNumber, addr common.Address) map[string]interface{} {
 	content := s.b.GetChainRewardContent(blockNr)
 	if content == nil {
