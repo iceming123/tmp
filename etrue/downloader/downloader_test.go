@@ -206,22 +206,6 @@ func (dl *downloadTester) CurrentBlock() *types.Block {
 	return dl.genesis
 }
 
-// CurrentBlock retrieves the current head fast-sync block from the canonical chain.
-func (dl *downloadTester) CurrentBlock() *types.Block {
-	dl.lock.RLock()
-	defer dl.lock.RUnlock()
-
-	for i := len(dl.ownHashes) - 1; i >= 0; i-- {
-		if block := dl.ancientBlocks[dl.ownHashes[i]]; block != nil {
-			return block
-		}
-		if block := dl.ownBlocks[dl.ownHashes[i]]; block != nil {
-			return block
-		}
-	}
-	return dl.genesis
-}
-
 // FastSyncCommitHead manually sets the head block to a given hash.
 func (dl *downloadTester) FastSyncCommitHead(hash common.Hash) error {
 	// For now only check that the state trie is correct

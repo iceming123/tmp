@@ -30,7 +30,6 @@ import (
 	"github.com/truechain/truechain-engineering-code"
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/core/types"
-	etrue "github.com/truechain/truechain-engineering-code/etrue/types"
 	"github.com/truechain/truechain-engineering-code/etruedb"
 	"github.com/truechain/truechain-engineering-code/event"
 	"github.com/truechain/truechain-engineering-code/log"
@@ -92,8 +91,6 @@ var (
 	errNoSyncActive            = errors.New("no sync active")
 	errTooOld                  = errors.New("peer doesn't speak recent enough protocol version (need version >= 62)")
 )
-
-
 
 type Downloader struct {
 	// WARNING: The `rttEstimate` and `rttConfidence` fields are accessed atomically.
@@ -196,9 +193,6 @@ type BlockChain interface {
 	// CurrentBlock retrieves the head block from the local chain.
 	CurrentBlock() *types.Block
 
-	// CurrentBlock retrieves the head fast block from the local chain.
-	CurrentBlock() *types.Block
-
 	// FastSyncCommitHead directly commits the head block to a certain entity.
 	FastSyncCommitHead(common.Hash) error
 
@@ -277,9 +271,6 @@ func (d *Downloader) Progress() truechain.SyncProgress {
 		KnownStates:   d.syncStatsState.processed + d.syncStatsState.pending,
 	}
 }
-
-
-
 // Synchronising returns whether the downloader is currently retrieving blocks.
 func (d *Downloader) Synchronising() bool {
 	return atomic.LoadInt32(&d.synchronising) > 0
@@ -923,7 +914,6 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, pivot uint64) 
 	// Start pulling the header chain skeleton until all is done
 	ancestor := from
 	getHeaders(from)
-
 	for {
 		select {
 		case <-d.cancelCh:
@@ -1734,11 +1724,6 @@ func (d *Downloader) DeliverHeaders(id string, headers []*types.Header) (err err
 
 // DeliverBodies injects a new batch of block bodies received from a remote node.
 func (d *Downloader) DeliverBodies(id string, transactions [][]*types.Transaction, signs [][]*types.PbftSign, infos [][]*types.CommitteeMember) (err error) {
-	watch := help.NewTWatch(3, fmt.Sprintf("peer: %s, handleMsg DeliverBodies, header %d", id, len(transactions)))
-	defer func() {
-		watch.EndWatch()
-		watch.Finish("end")
-	}()
 	return d.deliver(id, d.bodyCh, &bodyPack{id, transactions, signs, infos}, bodyInMeter, bodyDropMeter)
 }
 

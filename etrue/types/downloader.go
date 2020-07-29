@@ -27,8 +27,8 @@ var (
 // LightPeer encapsulates the methods required to synchronise with a remote light peer.
 type LightPeer interface {
 	Head() (common.Hash, *big.Int)
-	RequestHeadersByHash(common.Hash, int, int, bool, bool) error
-	RequestHeadersByNumber(uint64, int, int, bool, bool) error
+	RequestHeadersByHash(common.Hash, int, int, bool) error
+	RequestHeadersByNumber(uint64, int, int, bool) error
 }
 
 // Peer encapsulates the methods required to synchronise with a remote full peer.

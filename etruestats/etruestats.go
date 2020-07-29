@@ -37,7 +37,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/etrue"
 	"github.com/truechain/truechain-engineering-code/event"
-	"github.com/truechain/truechain-engineering-code/les"
 	"github.com/truechain/truechain-engineering-code/p2p"
 	"github.com/truechain/truechain-engineering-code/rpc"
 	"golang.org/x/net/websocket"
@@ -70,7 +69,6 @@ type blockChain interface {
 type Service struct {
 	server *p2p.Server      // Peer-to-peer server to retrieve networking infos
 	etrue  *etrue.Truechain // Full Truechain service if monitoring a full node
-	les    *les.LightEtrue  // Light Truechain service if monitoring a light node
 	engine consensus.Engine // Consensus engine to retrieve variadic block fields
 
 	node string // Name of the node to display on the monitoring page
@@ -82,23 +80,20 @@ type Service struct {
 }
 
 // New returns a monitoring service ready for stats reporting.
-func New(url string, ethServ *etrue.Truechain, lesServ *les.LightEtrue) (*Service, error) {
+func New(url string, etrueServ *etrue.Truechain) (*Service, error) {
 	// Parse the netstats connection url
 	re := regexp.MustCompile("([^:@]*)(:([^@]*))?@(.+)")
 	parts := re.FindStringSubmatch(url)
 	if len(parts) != 5 {
 		return nil, fmt.Errorf("invalid netstats url: \"%s\", should be nodename:secret@host:port", url)
 	}
-	// Assemble and return the stats service
-	var engine consensus.Engine
-	if ethServ != nil {
-		engine = ethServ.Engine()
-	} else {
-		engine = lesServ.Engine()
+	if etrueServ == nil {
+		return nil, fmt.Errorf("invalid server")
 	}
+	// Assemble and return the stats service
+	engine := etrueServ.Engine()
 	return &Service{
-		etrue:       ethServ,
-		les:         lesServ,
+		etrue:       etrueServ,
 		engine:      engine,
 		node:        parts[1],
 		pass:        parts[3],
@@ -137,13 +132,8 @@ func (s *Service) loop() {
 	// Subscribe to chain events to execute updates on
 	var blockchain blockChain
 	var txpool txPool
-	if s.etrue != nil {
-		blockchain = s.etrue.BlockChain()
-		txpool = s.etrue.TxPool()
-	} else {
-		blockchain = s.les.BlockChain()
-		txpool = s.les.TxPool()
-	}
+	blockchain = s.etrue.BlockChain()
+	txpool = s.etrue.TxPool()
 	//fastBlock
 	chainHeadCh := make(chan types.FastChainHeadEvent, chainHeadChanSize)
 	headSub := blockchain.SubscribeChainHeadEvent(chainHeadCh)
@@ -389,8 +379,7 @@ func (s *Service) login(conn *websocket.Conn) error {
 		network = fmt.Sprintf("%d", info.(*etrue.NodeInfo).Network)
 		protocol = fmt.Sprintf("etrue/%d", etrue.ProtocolVersions[0])
 	} else {
-		network = fmt.Sprintf("%d", infos.Protocols["les"].(*les.NodeInfo).Network)
-		protocol = fmt.Sprintf("les/%d", les.ClientProtocolVersions[0])
+		return fmt.Errorf("invalid Protocols")
 	}
 	//fmt.Println("infos.IP= ",infos.IP)
 	auth := &authMsg{
@@ -497,19 +486,6 @@ type blockStats struct {
 type txStats struct {
 	Hash common.Hash `json:"hash"`
 }
-
-// uncleStats is a custom wrapper around an uncle array to force serializing
-// empty arrays instead of returning null for them.
-
-type snailUncleStats []*types.SnailHeader
-
-func (s snailUncleStats) MarshalJSON() ([]byte, error) {
-	if uncles := ([]*types.SnailHeader)(s); len(uncles) > 0 {
-		return json.Marshal(uncles)
-	}
-	return []byte("[]"), nil
-}
-
 // reportBlock retrieves the current chain head and reports it to the stats server.
 func (s *Service) reportBlock(conn *websocket.Conn, block *types.Block) error {
 	// Gather the block details from the header or block chain
@@ -551,8 +527,6 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		// Light nodes would need on-demand lookups for transactions/uncles, skip
 		if block != nil {
 			header = block.Header()
-		} else {
-			header = s.les.BlockChain().CurrentHeader()
 		}
 		txs = []txStats{}
 	}
@@ -580,11 +554,7 @@ func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 	} else {
 		// No indexes requested, send back the top ones
 		var head int64
-		if s.etrue != nil {
-			head = s.etrue.BlockChain().CurrentHeader().Number.Int64()
-		} else {
-			head = s.les.BlockChain().CurrentHeader().Number.Int64()
-		}
+		head = s.etrue.BlockChain().CurrentHeader().Number.Int64()
 		start := head - historyUpdateRange + 1
 		if start < 0 {
 			start = 0
@@ -597,14 +567,7 @@ func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 	history := make([]*blockStats, len(indexes))
 	for i, number := range indexes {
 		// Retrieve the next block if it's known to us
-		var block *types.Block
-		if s.etrue != nil {
-			block = s.etrue.BlockChain().GetBlockByNumber(number)
-		} else {
-			if header := s.les.BlockChain().GetHeaderByNumber(number); header != nil {
-				block = types.NewBlockWithHeader(header)
-			}
-		}
+		block := s.etrue.BlockChain().GetBlockByNumber(number)
 		// If we do have the block, add to the history and continue
 		if block != nil {
 			history[len(history)-1-i] = s.assembleBlockStats(block)
@@ -638,12 +601,7 @@ type pendStats struct {
 // it to the stats server.
 func (s *Service) reportPending(conn *websocket.Conn) error {
 	// Retrieve the pending count from the local blockchain
-	var pending int
-	if s.etrue != nil {
-		pending, _ = s.etrue.TxPool().Stats()
-	} else {
-		pending = s.les.TxPool().Stats()
-	}
+	pending, _ := s.etrue.TxPool().Stats()
 	// Assemble the transaction stats and send it to the server
 	log.Trace("Sending pending transactions to etruestats", "count", pending)
 
@@ -681,19 +639,14 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 		syncing           bool
 		gasprice          int
 	)
-	if s.etrue != nil {
-		sync := s.etrue.Downloader().Progress()
-		syncing = s.etrue.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
+	sync := s.etrue.Downloader().Progress()
+	syncing = s.etrue.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
 
-		price, _ := s.etrue.APIBackend.SuggestPrice(context.Background())
-		gasprice = int(price.Uint64())
+	price, _ := s.etrue.APIBackend.SuggestPrice(context.Background())
+	gasprice = int(price.Uint64())
 
-		isCommitteeMember = s.etrue.PbftAgent().IsCommitteeMember()
-		isLeader = s.etrue.PbftAgent().IsLeader()
-	} else {
-		sync := s.les.Downloader().Progress()
-		syncing = s.les.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
-	}
+	isCommitteeMember = s.etrue.PbftAgent().IsCommitteeMember()
+	isLeader = s.etrue.PbftAgent().IsLeader()
 	// Assemble the node stats and send it to the server
 	log.Trace("Sending node details to etruestats")
 	nodeStats := &nodeStats{

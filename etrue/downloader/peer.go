@@ -22,24 +22,21 @@ package downloader
 import (
 	"errors"
 	"fmt"
-	"github.com/truechain/truechain-engineering-code/core/types"
 	"math"
 	"math/big"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
-
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/log"
-	etrue "github.com/truechain/truechain-engineering-code/etrue/types"
+	"github.com/truechain/truechain-engineering-code/event"
 )
 
 const (
 	maxLackingHashes  = 4096 // Maximum number of entries allowed on the list or lacking items
 	measurementImpact = 0.1  // The impact a single measurement has on a peer's final throughput value.
 )
-
 var (
 	errAlreadyFetching   = errors.New("already fetching blocks from peer")
 	errAlreadyRegistered = errors.New("peer is already registered")
@@ -69,7 +66,7 @@ type peerConnection struct {
 
 	lacking map[common.Hash]struct{} // Set of hashes not to request (didn't have previously)
 
-	peer etrue.Peer
+	peer Peer
 
 	version int        // Eth protocol version number to switch strategies
 	log     log.Logger // Contextual logger to add extra infos to peer logs

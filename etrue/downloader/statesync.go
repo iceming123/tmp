@@ -18,7 +18,6 @@ package downloader
 
 import (
 	"fmt"
-	"github.com/truechain/truechain-engineering-code/core/types"
 	"hash"
 	"sync"
 	"time"
@@ -30,8 +29,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/etruedb"
 	"github.com/truechain/truechain-engineering-code/trie"
 	"golang.org/x/crypto/sha3"
-
-	etrue "github.com/truechain/truechain-engineering-code/etrue/types"
 )
 
 // stateReq represents a batch of state fetch requests grouped together into

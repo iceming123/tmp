@@ -29,7 +29,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/common/prque"
 	"github.com/truechain/truechain-engineering-code/log"
 	"github.com/truechain/truechain-engineering-code/core/types"
-	etrue "github.com/truechain/truechain-engineering-code/etrue/types"
 	"github.com/truechain/truechain-engineering-code/metrics"
 )
 
@@ -38,7 +37,6 @@ var (
 	blockCacheMemory     = 64 * 1024 * 1024 // Maximum amount of memory to use for block caching
 	blockCacheSizeWeight = 0.1              // Multiplier to approximate the average block size based on past ones
 )
-
 var (
 	errNoFetchesPending = errors.New("no fetches pending")
 	errStaleDelivery    = errors.New("stale delivery")

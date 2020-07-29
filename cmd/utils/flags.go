@@ -51,7 +51,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/etrue/gasprice"
 	"github.com/truechain/truechain-engineering-code/etruedb"
 	"github.com/truechain/truechain-engineering-code/etruestats"
-	"github.com/truechain/truechain-engineering-code/les"
 	"github.com/truechain/truechain-engineering-code/log"
 	"github.com/truechain/truechain-engineering-code/metrics"
 	"github.com/truechain/truechain-engineering-code/metrics/influxdb"
@@ -1234,16 +1233,10 @@ func SetDashboardConfig(ctx *cli.Context, cfg *dashboard.Config) {
 func RegisterEtrueService(stack *node.Node, cfg *etrue.Config) {
 	var err error
 	if cfg.SyncMode == downloader.LightSync {
-		err = stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-			return les.New(ctx, cfg)
-		})
+		Fatalf("Failed to register the Truechain les service")
 	} else {
 		err = stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			fullNode, err := etrue.New(ctx, cfg)
-			if fullNode != nil && cfg.LightServ > 0 {
-				ls, _ := les.NewLesServer(fullNode, cfg)
-				fullNode.AddLesServer(ls)
-			}
 			return fullNode, err
 		})
 	}
@@ -1255,7 +1248,7 @@ func RegisterEtrueService(stack *node.Node, cfg *etrue.Config) {
 // RegisterDashboardService adds a dashboard to the stack.
 func RegisterDashboardService(stack *node.Node, cfg *dashboard.Config, commit string) {
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		// Retrieve both etrue and les services
+		// Retrieve both etrue services
 		var etrueServ *etrue.Truechain
 		ctx.Service(&etrueServ)
 		return dashboard.New(cfg, commit, ctx.ResolvePath("logs"), etrueServ), nil
@@ -1271,12 +1264,9 @@ func RegisterDashboardService(stack *node.Node, cfg *dashboard.Config, commit st
 // th egiven node.
 func RegisterEtrueStatsService(stack *node.Node, url string) {
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		// Retrieve both etrue and les services
+		// Retrieve both etrue services
 		var etrueServ *etrue.Truechain
 		ctx.Service(&etrueServ)
-
-		var lesServ *les.LightEtrue
-		ctx.Service(&lesServ)
 
 		return etruestats.New(url, etrueServ, lesServ)
 	}); err != nil {
