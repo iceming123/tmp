@@ -217,7 +217,7 @@ func (b *testChainIndexBackend) Reset(ctx context.Context, section uint64, prevH
 	return nil
 }
 
-func (b *testChainIndexBackend) Process(header *types.Header) error {
+func (b *testChainIndexBackend) Process(header *types.Header) {
 	b.headerCnt++
 	if b.headerCnt > b.indexer.sectionSize {
 		b.t.Error("Processing too many headers")
