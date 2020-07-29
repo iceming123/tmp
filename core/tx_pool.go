@@ -49,7 +49,7 @@ const (
 var (
 	// ErrInvalidSender is returned if the transaction contains an invalid signature.
 	ErrInvalidSender = errors.New("invalid sender")
-
+	ErrAlreadyKnown = errors.New("already known")
 	// ErrInvalidPayer is returned if the transaction contains an invalid payer's signature.
 	ErrInvalidPayer = errors.New("invalid payer")
 

@@ -47,7 +47,6 @@ type stateReq struct {
 func (req *stateReq) timedOut() bool {
 	return req.response == nil
 }
-
 // stateSyncStats is a collection of progress stats to report during a state trie
 // sync to RPC requests as well as to display in user logs.
 type stateSyncStats struct {

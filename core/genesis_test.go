@@ -67,14 +67,14 @@ func TestSetupGenesis(t *testing.T) {
 	oldcustomg.Config = &params.ChainConfig{}
 	tests := []struct {
 		name       string
-		fn         func(etruedb.Database) (*params.ChainConfig, common.Hash, common.Hash, error)
+		fn         func(etruedb.Database) (*params.ChainConfig, common.Hash, error)
 		wantConfig *params.ChainConfig
 		wantHash   common.Hash
 		wantErr    error
 	}{
 		{
 			name: "genesis without ChainConfig",
-			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, common.Hash, error) {
+			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, error) {
 				return SetupGenesisBlock(db, new(Genesis))
 			},
 			wantErr:    errGenesisNoConfig,
@@ -82,7 +82,7 @@ func TestSetupGenesis(t *testing.T) {
 		},
 		{
 			name: "no block in DB, genesis == nil",
-			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, common.Hash, error) {
+			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, error) {
 				return SetupGenesisBlock(db, nil)
 			},
 			wantHash:   params.MainnetGenesisHash,
@@ -90,7 +90,7 @@ func TestSetupGenesis(t *testing.T) {
 		},
 		{
 			name: "mainnet block in DB, genesis == nil",
-			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, common.Hash, error) {
+			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, error) {
 				DefaultGenesisBlock().MustFastCommit(db)
 				return SetupGenesisBlock(db, nil)
 			},
@@ -99,7 +99,7 @@ func TestSetupGenesis(t *testing.T) {
 		},
 		{
 			name: "custom block in DB, genesis == testnet",
-			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, common.Hash, error) {
+			fn: func(db etruedb.Database) (*params.ChainConfig, common.Hash, error) {
 				customg.MustFastCommit(db)
 				return SetupGenesisBlock(db, DefaultTestnetGenesisBlock())
 			},

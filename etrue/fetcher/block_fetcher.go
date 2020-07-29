@@ -106,7 +106,6 @@ type blockAnnounce struct {
 	fetchHeader headerRequesterFn // Fetcher function to retrieve the header of an announced block
 	fetchBodies bodyRequesterFn   // Fetcher function to retrieve the body of an announced block
 }
-
 // headerFilterTask represents a batch of headers needing fetcher filtering.
 type headerFilterTask struct {
 	peer    string          // The source peer of block headers

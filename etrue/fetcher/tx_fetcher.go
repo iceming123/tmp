@@ -290,10 +290,8 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 			// Track a few interesting failure types
 			switch err {
 			case nil: // Noop, but need to handle to not count these
-
 			case core.ErrAlreadyKnown:
 				duplicate++
-
 			case core.ErrUnderpriced, core.ErrReplaceUnderpriced:
 				underpriced++
 
