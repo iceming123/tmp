@@ -34,7 +34,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/crypto"
 	"github.com/truechain/truechain-engineering-code/internal/trueapi"
-	"github.com/truechain/truechain-engineering-code/log"
 	"github.com/truechain/truechain-engineering-code/params"
 	"github.com/truechain/truechain-engineering-code/rlp"
 	"github.com/truechain/truechain-engineering-code/rpc"
@@ -51,17 +50,6 @@ type PublicTruechainAPI struct {
 func NewPublicTruechainAPI(e *Truechain) *PublicTruechainAPI {
 	return &PublicTruechainAPI{e}
 }
-
-// Etherbase is the address that mining rewards will be send to
-func (api *PublicTruechainAPI) Etherbase() (common.Address, error) {
-	return api.e.Etherbase()
-}
-
-// Coinbase is the address that mining rewards will be send to (alias for Etherbase)
-func (api *PublicTruechainAPI) Coinbase() (common.Address, error) {
-	return api.Etherbase()
-}
-
 // Pubkey is the address that mining rewards will be send to (alias for Etherbase)
 func (api *PublicTruechainAPI) Pubkey() string {
 	return common.Bytes2Hex(api.e.agent.committeeNode.Publickey)

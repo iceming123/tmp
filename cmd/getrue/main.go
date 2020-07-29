@@ -17,7 +17,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/accounts/keystore"
 	"github.com/truechain/truechain-engineering-code/cmd/utils"
 	"github.com/truechain/truechain-engineering-code/console"
-	"github.com/truechain/truechain-engineering-code/etrue"
 	"github.com/truechain/truechain-engineering-code/etrueclient"
 	"github.com/truechain/truechain-engineering-code/internal/debug"
 	"github.com/truechain/truechain-engineering-code/log"
@@ -64,9 +63,6 @@ var (
 		utils.SyncModeFlag,
 
 		utils.SingleNodeFlag,
-
-		utils.EnableElectionFlag,
-
 		utils.BFTPortFlag,
 		utils.BFTStandbyPortFlag,
 		utils.BFTIPFlag,
@@ -75,7 +71,6 @@ var (
 
 		utils.GCModeFlag,
 		utils.LightServFlag,
-		utils.LightPeersFlag,
 		utils.LightKDFFlag,
 		utils.CacheFlag,
 		utils.CacheDatabaseFlag,
@@ -84,14 +79,8 @@ var (
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
-		utils.EtherbaseFlag,
-		utils.CoinbaseFlag,
 		utils.GasPriceFlag,
 
-		utils.MinerThreadsFlag,
-		utils.MineFruitFlag,
-		utils.MiningEnabledFlag,
-		utils.MiningRemoteEnableFlag,
 		utils.GasTargetFlag,
 		utils.GasLimitFlag,
 
@@ -113,7 +102,6 @@ var (
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
 		utils.GpoPercentileFlag,
-		utils.ExtraDataFlag,
 		configFileFlag,
 	}
 
@@ -299,26 +287,4 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
-	// Start auxiliary services if enabled
-	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.MineFruitFlag.Name) {
-		// Mining only makes sense if a full Truechain node is running
-		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
-			utils.Fatalf("Light clients do not support mining")
-		}
-		var truechain *etrue.Truechain
-		if err := stack.Service(&truechain); err != nil {
-			utils.Fatalf("Truechain service not running: %v", err)
-		}
-		// Use a reduced number of threads if requested
-		if threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name); threads > 0 {
-			type threaded interface {
-				SetThreads(threads int)
-			}
-			if th, ok := truechain.Engine().(threaded); ok {
-				th.SetThreads(threads)
-			}
-		}
-		// Set the gas price to the limits from the CLI and start mining
-		truechain.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
-	}
 }

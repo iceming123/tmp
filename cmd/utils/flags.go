@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -173,12 +172,6 @@ var (
 		Usage: "sing node model start",
 	}
 
-	//election setting
-	EnableElectionFlag = cli.BoolFlag{
-		Name:  "election",
-		Usage: "enable election",
-	}
-
 	//bpft setting
 	BFTIPFlag = cli.StringFlag{
 		Name:  "bftip",
@@ -222,11 +215,6 @@ var (
 		Name:  "lightserv",
 		Usage: "Maximum percentage of time allowed for serving LES requests (0-90)",
 		Value: 0,
-	}
-	LightPeersFlag = cli.IntFlag{
-		Name:  "lightpeers",
-		Usage: "Maximum number of LES client peers",
-		Value: etrue.DefaultConfig.LightPeers,
 	}
 	LightKDFFlag = cli.BoolFlag{
 		Name:  "lightkdf",
@@ -323,27 +311,6 @@ var (
 		Usage: "Number of trie node generations to keep in memory",
 		Value: int(state.MaxTrieCacheGen),
 	}
-	// Miner settings
-	MiningEnabledFlag = cli.BoolFlag{
-		Name:  "mine",
-		Usage: "Enable mining",
-	}
-
-	MiningRemoteEnableFlag = cli.BoolFlag{
-		Name:  "remote",
-		Usage: "Enable remote mining",
-	}
-
-	MineFruitFlag = cli.BoolFlag{
-		Name:  "minefruit",
-		Usage: "only mine fruit",
-	}
-	MinerThreadsFlag = cli.IntFlag{
-		Name:  "minerthreads",
-		Usage: "Number of CPU threads to use for mining",
-		Value: runtime.NumCPU() - 1,
-	}
-
 	GasTargetFlag = cli.Uint64Flag{
 		Name:  "gastarget",
 		Usage: "Target gas floor for fast block",
@@ -356,24 +323,10 @@ var (
 		Value: etrue.DefaultConfig.MinerGasCeil,
 	}
 
-	EtherbaseFlag = cli.StringFlag{
-		Name:  "etherbase",
-		Usage: "Public address for block mining rewards (default = first account created)",
-		Value: "0",
-	}
-	CoinbaseFlag = cli.StringFlag{
-		Name:  "coinbase",
-		Usage: "Public address for block mining rewards (default = first account created)",
-		Value: "0",
-	}
 	GasPriceFlag = BigFlag{
 		Name:  "gasprice",
 		Usage: "Minimal gas price to accept for mining a transactions",
 		Value: etrue.DefaultConfig.GasPrice,
-	}
-	ExtraDataFlag = cli.StringFlag{
-		Name:  "extradata",
-		Usage: "Block extra data set by the miner (default = client version)",
 	}
 	// Account settings
 	UnlockedAccountFlag = cli.StringFlag{
@@ -861,24 +814,6 @@ func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error
 	return accs[index], nil
 }
 
-// setEtherbase retrieves the etherbase either from the directly specified
-// command line flags or from the keystore if CLI indexed.
-func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *etrue.Config) {
-	if ctx.GlobalIsSet(EtherbaseFlag.Name) {
-		account, err := MakeAddress(ks, ctx.GlobalString(EtherbaseFlag.Name))
-		if err != nil {
-			Fatalf("Option %q: %v", EtherbaseFlag.Name, err)
-		}
-		cfg.Etherbase = account.Address
-	} else if ctx.GlobalIsSet(CoinbaseFlag.Name) {
-		account, err := MakeAddress(ks, ctx.GlobalString(CoinbaseFlag.Name))
-		if err != nil {
-			Fatalf("Option %q: %v", CoinbaseFlag.Name, err)
-		}
-		cfg.Etherbase = account.Address
-	}
-}
-
 // MakePasswordList reads password lines from the file specified by the global --password flag.
 func MakePasswordList(ctx *cli.Context) []string {
 	path := ctx.GlobalString(PasswordFileFlag.Name)
@@ -902,33 +837,16 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setNAT(ctx, cfg)
 	setListenAddress(ctx, cfg)
 	setBootstrapNodes(ctx, cfg)
-	setBootstrapNodesV5(ctx, cfg)
+	// setBootstrapNodesV5(ctx, cfg)
 
 	lightClient := ctx.GlobalString(SyncModeFlag.Name) == "light"
-	lightServer := ctx.GlobalInt(LightServFlag.Name) != 0
-	lightPeers := ctx.GlobalInt(LightPeersFlag.Name)
-
+	if lightClient {
+		Fatalf("wrong mode in light client")
+	}
 	if ctx.GlobalIsSet(MaxPeersFlag.Name) {
 		cfg.MaxPeers = ctx.GlobalInt(MaxPeersFlag.Name)
-		if lightServer && !ctx.GlobalIsSet(LightPeersFlag.Name) {
-			cfg.MaxPeers += lightPeers
-		}
-	} else {
-		if lightServer {
-			cfg.MaxPeers += lightPeers
-		}
-		if lightClient && ctx.GlobalIsSet(LightPeersFlag.Name) && cfg.MaxPeers < lightPeers {
-			cfg.MaxPeers = lightPeers
-		}
 	}
-	if !(lightClient || lightServer) {
-		lightPeers = 0
-	}
-	ethPeers := cfg.MaxPeers - lightPeers
-	if lightClient {
-		ethPeers = 0
-	}
-	log.Info("Maximum peer count", "ETRUE", ethPeers, "LES", lightPeers, "total", cfg.MaxPeers)
+	log.Info("Maximum peer count", "total", cfg.MaxPeers)
 
 	if ctx.GlobalIsSet(MaxPendingPeersFlag.Name) {
 		cfg.MaxPendingPeers = ctx.GlobalInt(MaxPendingPeersFlag.Name)
@@ -936,11 +854,10 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	if ctx.GlobalIsSet(NoDiscoverFlag.Name) || lightClient {
 		cfg.NoDiscovery = true
 	}
-
 	// if we're running a light client or server, force enable the v5 peer discovery
 	// unless it is explicitly disabled with --nodiscover note that explicitly specifying
 	// --v5disc overrides --nodiscover, in which case the later only disables v4 discovery
-	forceV5Discovery := (lightClient || lightServer) && !ctx.GlobalBool(NoDiscoverFlag.Name)
+	forceV5Discovery := false
 	if ctx.GlobalIsSet(DiscoveryV5Flag.Name) {
 		cfg.DiscoveryV5 = ctx.GlobalBool(DiscoveryV5Flag.Name)
 	} else if forceV5Discovery {
@@ -953,10 +870,6 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 			Fatalf("Option %q: %v", NetrestrictFlag.Name, err)
 		}
 		cfg.NetRestrict = list
-	}
-
-	if !ctx.GlobalBool(SingleNodeFlag.Name) && ctx.GlobalBool(EnableElectionFlag.Name) && ctx.GlobalIsSet(BFTIPFlag.Name) {
-		cfg.Host = ctx.GlobalString(BFTIPFlag.Name)
 	}
 }
 
@@ -1030,11 +943,6 @@ func setTxPool(ctx *cli.Context, cfg *core.TxPoolConfig) {
 		cfg.Lifetime = ctx.GlobalDuration(TxPoolLifetimeFlag.Name)
 	}
 }
-
-func setEthash(ctx *cli.Context, cfg *etrue.Config) {
-
-}
-
 // CheckExclusive verifies that only a single instance of the provided flags was
 // set by the user. Each flag might optionally be followed by a string type to
 // specialize it further.
@@ -1081,35 +989,16 @@ func SetTruechainConfig(ctx *cli.Context, stack *node.Node, cfg *etrue.Config) {
 	// Avoid conflicting network flags
 	CheckExclusive(ctx, TestnetFlag, DevnetFlag, SingleNodeFlag)
 	//CheckExclusive(ctx, LightServFlag, LightModeFlag)
-	CheckExclusive(ctx, LightServFlag, SyncModeFlag, "light")
+	// CheckExclusive(ctx, LightServFlag, SyncModeFlag, "light")
 
-	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
-	setEtherbase(ctx, ks, cfg)
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
-	setEthash(ctx, cfg)
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
 
-	if ctx.GlobalIsSet(LightServFlag.Name) {
-		cfg.LightServ = ctx.GlobalInt(LightServFlag.Name)
-	}
-	if ctx.GlobalIsSet(LightPeersFlag.Name) {
-		cfg.LightPeers = ctx.GlobalInt(LightPeersFlag.Name)
-	}
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
-	}
-
-	if ctx.GlobalBool(MineFruitFlag.Name) {
-		cfg.MineFruit = true
-	}
-	if ctx.GlobalBool(MiningEnabledFlag.Name) {
-		cfg.Mine = true
-	}
-	if ctx.GlobalBool(MiningRemoteEnableFlag.Name) {
-		cfg.RemoteMine = true
 	}
 	if ctx.GlobalBool(SingleNodeFlag.Name) {
 		cfg.NodeType = true
@@ -1134,25 +1023,9 @@ func SetTruechainConfig(ctx *cli.Context, stack *node.Node, cfg *etrue.Config) {
 	if bytes.Equal(cfg.CommitteeKey, []byte{}) {
 		Fatalf("init load CommitteeKey  nil.")
 	}
-	if ctx.GlobalBool(EnableElectionFlag.Name) {
-		cfg.EnableElection = true
-	}
-	if cfg.EnableElection && !cfg.NodeType {
-		if cfg.Host == "" {
-			Fatalf("election set true,Option %q  must be exist.", BFTIPFlag.Name)
-		}
-		if cfg.Port == 0 {
-			Fatalf("election set true,Option %q  must be exist.", BFTPortFlag.Name)
-		}
-		if cfg.StandbyPort == 0 {
-			Fatalf("election set true,Option %q  must be exist.", BFTStandbyPortFlag.Name)
-		}
-		if cfg.Port == cfg.StandbyPort {
-			Fatalf("election set true,Option %q and %q must be different.", BFTPortFlag.Name, BFTStandbyPortFlag.Name)
-		}
-	}
+
 	log.Info("Committee Node info:", "publickey", hex.EncodeToString(crypto.FromECDSAPub(&cfg.PrivateKey.PublicKey)),
-		"ip", cfg.Host, "port", cfg.Port, "election", cfg.EnableElection, "singlenode", cfg.NodeType)
+		"ip", cfg.Host, "port", cfg.Port, "singlenode", cfg.NodeType)
 
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheDatabaseFlag.Name) {
 		cfg.DatabaseCache = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheDatabaseFlag.Name) / 100
@@ -1167,21 +1040,15 @@ func SetTruechainConfig(ctx *cli.Context, stack *node.Node, cfg *etrue.Config) {
 		cfg.NoPruning = ctx.GlobalString(GCModeFlag.Name) == "archive"
 	}
 
-	if ctx.GlobalIsSet(StateGCFlag.Name) || cfg.SyncMode == downloader.SnapShotSync {
+	if ctx.GlobalIsSet(StateGCFlag.Name) {
 		cfg.DeletedState = true
 	}
 
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheGCFlag.Name) {
 		cfg.TrieCache = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
 	}
-	if ctx.GlobalIsSet(MinerThreadsFlag.Name) {
-		cfg.MinerThreads = ctx.GlobalInt(MinerThreadsFlag.Name)
-	}
 	if ctx.GlobalIsSet(DocRootFlag.Name) {
 		cfg.DocRoot = ctx.GlobalString(DocRootFlag.Name)
-	}
-	if ctx.GlobalIsSet(ExtraDataFlag.Name) {
-		cfg.ExtraData = []byte(ctx.GlobalString(ExtraDataFlag.Name))
 	}
 	if ctx.GlobalIsSet(GasPriceFlag.Name) {
 		cfg.GasPrice = GlobalBig(ctx, GasPriceFlag.Name)
@@ -1268,7 +1135,7 @@ func RegisterEtrueStatsService(stack *node.Node, url string) {
 		var etrueServ *etrue.Truechain
 		ctx.Service(&etrueServ)
 
-		return etruestats.New(url, etrueServ, lesServ)
+		return etruestats.New(url, etrueServ)
 	}); err != nil {
 		Fatalf("Failed to register the Truechain Stats service: %v", err)
 	}

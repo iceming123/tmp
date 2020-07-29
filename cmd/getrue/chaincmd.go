@@ -15,7 +15,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/cmd/utils"
 	"github.com/truechain/truechain-engineering-code/console"
 	"github.com/truechain/truechain-engineering-code/core"
-	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/etrue/downloader"
 	"github.com/truechain/truechain-engineering-code/etruedb"
 	"github.com/truechain/truechain-engineering-code/event"
@@ -194,7 +193,7 @@ func importChain(ctx *cli.Context) error {
 		utils.Fatalf("This command requires an argument.")
 	}
 	stack := makeFullNode(ctx)
-	fchain, schain, chainDb := utils.MakeChain(ctx, stack)
+	fchain, chainDb := utils.MakeChain(ctx, stack)
 	defer chainDb.Close()
 
 	// Start periodically gathering memory profiles
@@ -227,8 +226,6 @@ func importChain(ctx *cli.Context) error {
 		}
 	}
 	fchain.Stop()
-	schain.Stop()
-
 	fmt.Printf("Import done in %v.\n\n", time.Since(start))
 
 	// Output pre-compaction stats mostly to see the import trashing
@@ -290,7 +287,7 @@ func exportChain(ctx *cli.Context) error {
 		utils.Fatalf("This command requires an argument.")
 	}
 	stack := makeFullNode(ctx)
-	fchain, schain, _ := utils.MakeChain(ctx, stack)
+	fchain, _ := utils.MakeChain(ctx, stack)
 	start := time.Now()
 
 	fmt.Println(ctx.Args())

@@ -105,15 +105,15 @@ type BloomIndexer struct {
 // NewBloomIndexer returns a chain indexer that generates bloom bits data for the
 // canonical chain for fast logs filtering.
 func NewBloomIndexer(db etruedb.Database, size, confirms uint64) *core.ChainIndexer {
-	backend := &BloomIndexer{
-		db:   db,
-		size: size,
-	}
-	table := etruedb.NewTable(db, string(rawdb.BloomBitsIndexPrefix))
+	// backend := &BloomIndexer{
+	// 	db:   db,
+	// 	size: size,
+	// }
+	// table := etruedb.NewTable(db, string(rawdb.BloomBitsIndexPrefix))
+	return nil
 
-	return core.NewChainIndexer(db, table, backend, size, bloomConfirms, bloomThrottling, "bloombits")
+	// return core.NewChainIndexer(db, table, backend, size, bloomConfirms, bloomThrottling, "bloombits")
 }
-
 // Reset implements core.ChainIndexerBackend, starting a new bloombits index
 // section.
 func (b *BloomIndexer) Reset(ctx context.Context, section uint64, lastSectionHead common.Hash) error {

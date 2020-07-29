@@ -330,7 +330,6 @@ func (b *Block) Time() *big.Int        { return new(big.Int).Set(b.header.Time) 
 func (b *Block) Proposer() common.Address        { return b.header.Proposer }
 func (b *Block) NumberU64() uint64               { return b.header.Number.Uint64() }
 func (b *Block) Bloom() Bloom                    { return b.header.Bloom }
-func (b *Block) Coinbase() common.Address        { return common.Address{} }
 func (b *Block) Root() common.Hash               { return b.header.Root }
 func (b *Block) ParentHash() common.Hash         { return b.header.ParentHash }
 func (b *Block) TxHash() common.Hash             { return b.header.TxHash }

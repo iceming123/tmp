@@ -18,17 +18,11 @@ package etrue
 
 import (
 	"math/big"
-	"os"
-	"os/user"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"crypto/ecdsa"
-
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
-	"github.com/truechain/truechain-engineering-code/consensus/minerva"
 	"github.com/truechain/truechain-engineering-code/core"
 	"github.com/truechain/truechain-engineering-code/etrue/downloader"
 	"github.com/truechain/truechain-engineering-code/etrue/gasprice"
@@ -86,7 +80,7 @@ type Config struct {
 	// CommitteeKey is the ECDSA private key for committee member.
 	// If this filed is empty, can't be a committee member.
 	CommitteeKey []byte `toml:",omitempty"`
-
+	CommitteeBase common.Address
 	PrivateKey *ecdsa.PrivateKey `toml:"-"`
 
 	// Host is the host interface on which to start the pbft server. If this

@@ -42,7 +42,7 @@ type ChainIndexerBackend interface {
 
 	// Process crunches through the next header in the chain segment. The caller
 	// will ensure a sequential order of headers.
-	Process(ctx context.Context, header *types.Header) error
+	Process(header *types.Header) error
 
 	// Commit finalizes the section metadata and stores it into the database.
 	Commit() error
@@ -400,7 +400,7 @@ func (c *ChainIndexer) processSection(section uint64, lastHead common.Hash) (com
 		} else if header.ParentHash != lastHead {
 			return common.Hash{}, fmt.Errorf("chain reorged during section processing")
 		}
-		if err := c.backend.Process(c.ctx, header); err != nil {
+		if err := c.backend.Process(header); err != nil {
 			return common.Hash{}, err
 		}
 		lastHead = header.Hash()

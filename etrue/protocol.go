@@ -17,9 +17,7 @@
 package etrue
 
 import (
-	"crypto/ecdsa"
 	"fmt"
-	"github.com/truechain/truechain-engineering-code/core/state"
 	"io"
 	"math/big"
 
@@ -27,22 +25,24 @@ import (
 	"github.com/truechain/truechain-engineering-code/core/types"
 	"github.com/truechain/truechain-engineering-code/event"
 	"github.com/truechain/truechain-engineering-code/rlp"
+	"github.com/truechain/truechain-engineering-code/core/forkid"
 )
 
 // Constants to match up protocol versions and messages
 const (
-	etrue63 = 63
-	etrue64 = 64
+	eth63 = 63
+	eth64 = 64
+	eth65 = 65
 )
 
 // ProtocolName is the official short name of the protocol used during capability negotiation.
 var ProtocolName = "etrue"
 
-// ProtocolVersions are the upported versions of the etrue protocol (first is primary).
-var ProtocolVersions = []uint{etrue64, etrue63}
+// ProtocolVersions are the supported versions of the eth protocol (first is primary).
+var ProtocolVersions = []uint{eth65, eth64, eth63}
 
-// ProtocolLengths are the number of implemented message corresponding to different protocol versions.
-var ProtocolLengths = []uint64{32, 20}
+// protocolLengths are the number of implemented message corresponding to different protocol versions.
+var ProtocolLengths = map[uint]uint64{eth65: 25, eth64: 25, eth63: 25}
 
 const ProtocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
@@ -236,19 +236,6 @@ func (hn *hashOrNumber) DecodeRLP(s *rlp.Stream) error {
 type newBlockData struct {
 	Block *types.Block
 	TD    *big.Int
-}
-
-// sanityCheck verifies that the values are reasonable, as a DoS protection
-func (request *newBlockData) sanityCheck() error {
-	if err := request.Block.SanityCheck(); err != nil {
-		return err
-	}
-	//TD at mainnet block #7753254 is 76 bits. If it becomes 100 million times
-	// larger, it will still fit within 100 bits
-	if tdlen := request.TD.BitLen(); tdlen > 100 {
-		return fmt.Errorf("too large block TD: bitlen %d", tdlen)
-	}
-	return nil
 }
 
 // blockBody represents the data content of a single block.

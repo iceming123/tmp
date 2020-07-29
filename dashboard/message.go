@@ -24,7 +24,6 @@ type Message struct {
 	General   *GeneralMessage   `json:"general,omitempty"`
 	Home      *HomeMessage      `json:"home,omitempty"`
 	Chain     *ChainMessage     `json:"chain,omitempty"`
-	Miner     *MinerMessage     `json:"miner,omitempty"`
 	Committee *CommitteeMessage `json:"committee,omitempty"`
 	TxPool    *TxPoolMessage    `json:"txpool,omitempty"`
 	FtPool    *FtPoolMessage    `json:"ftpool,omitempty"`
@@ -50,11 +49,6 @@ type HomeMessage struct {
 
 type ChainMessage struct {
 	FastChain  *fastChainInfo  `json:"fastChain,omitempty"`  // fastChain info tree.
-}
-
-type MinerMessage struct {
-	FruitInfo      *fruitInfo      `json:"fruitInfo,omitempty"`      // mine fruit info tree.
-	SnailBlockInfo *snailBlockInfo `json:"snailBlockInfo,omitempty"` // mine snail block info tree.
 }
 
 // CommitteeMessage contains the info of committee.

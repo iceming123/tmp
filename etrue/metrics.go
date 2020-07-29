@@ -126,43 +126,34 @@ func (rw *meteredMsgReadWriter) ReadMsg() (p2p.Msg, error) {
 	// Account for the data traffic
 	packets, traffic := miscInPacketsMeter, miscInTrafficMeter
 	switch {
-	case msg.Code == FastBlockHeadersMsg:
+	case msg.Code == BlockHeadersMsg:
 		packets, traffic = reqFHeaderInPacketsMeter, reqFHeaderInTrafficMeter
-	case msg.Code == FastBlockBodiesMsg:
+	case msg.Code == BlockBodiesMsg:
 		packets, traffic = reqFBodyInPacketsMeter, reqFBodyInTrafficMeter
 	case msg.Code == NodeDataMsg:
 		packets, traffic = reqStateInPacketsMeter, reqStateInTrafficMeter
 	case msg.Code == ReceiptsMsg:
 		packets, traffic = reqReceiptInPacketsMeter, reqReceiptInTrafficMeter
 
-	case msg.Code == NewFastBlockHashesMsg:
+	case msg.Code == NewBlockHashesMsg:
 		packets, traffic = propFHashInPacketsMeter, propFHashInTrafficMeter
-	case msg.Code == NewSnailBlockHashesMsg:
-		packets, traffic = propSHashInPacketsMeter, propSHashInTrafficMeter
-	case msg.Code == NewFastBlockMsg:
+	case msg.Code == NewBlockMsg:
 		packets, traffic = propFBlockInPacketsMeter, propFBlockInTrafficMeter
-	case msg.Code == NewSnailBlockMsg:
-		packets, traffic = propSBlockInPacketsMeter, propSBlockInTrafficMeter
-	case msg.Code == TxMsg:
+	case msg.Code == TransactionMsg:
 		packets, traffic = propTxnInPacketsMeter, propTxnInTrafficMeter
-	case msg.Code == NewFruitMsg:
-		packets, traffic = propFtnInPacketsMeter, propFtnInTrafficMeter
 	case msg.Code == TbftNodeInfoMsg:
 		packets, traffic = propNodeInfoInPacketsMeter, propNodeInfoInTrafficMeter
 	case msg.Code == TbftNodeInfoHashMsg:
 		packets, traffic = propNodeInfoHashInPacketsMeter, propNodeInfoHashInTrafficMeter
 	case msg.Code == GetTbftNodeInfoMsg:
 		packets, traffic = getNodeInfoInPacketsMeter, getNodeInfoInTrafficMeter
-	case msg.Code == GetFastBlockHeadersMsg:
+	case msg.Code == GetBlockHeadersMsg:
 		packets, traffic = getHeadInPacketsMeter, getHeadInTrafficMeter
-	case msg.Code == GetFastBlockBodiesMsg:
+	case msg.Code == GetBlockBodiesMsg:
 		packets, traffic = getHeadInPacketsMeter, getHeadInTrafficMeter
-	case msg.Code == GetSnailBlockBodiesMsg:
-		packets, traffic = getBodyInPacketsMeter, getBodyInTrafficMeter
 	}
 	packets.Mark(1)
 	traffic.Mark(int64(msg.Size))
-
 	return msg, err
 }
 
@@ -170,39 +161,31 @@ func (rw *meteredMsgReadWriter) WriteMsg(msg p2p.Msg) error {
 	// Account for the data traffic
 	packets, traffic := miscOutPacketsMeter, miscOutTrafficMeter
 	switch {
-	case msg.Code == FastBlockHeadersMsg:
+	case msg.Code == BlockHeadersMsg:
 		packets, traffic = reqFHeaderOutPacketsMeter, reqFHeaderOutTrafficMeter
-	case msg.Code == FastBlockBodiesMsg:
+	case msg.Code == BlockBodiesMsg:
 		packets, traffic = reqFBodyOutPacketsMeter, reqFBodyOutTrafficMeter
 	case msg.Code == NodeDataMsg:
 		packets, traffic = reqStateOutPacketsMeter, reqStateOutTrafficMeter
 	case msg.Code == ReceiptsMsg:
 		packets, traffic = reqReceiptOutPacketsMeter, reqReceiptOutTrafficMeter
 
-	case msg.Code == NewFastBlockHashesMsg:
+	case msg.Code == NewBlockHashesMsg:
 		packets, traffic = propFHashOutPacketsMeter, propFHashOutTrafficMeter
-	case msg.Code == NewSnailBlockHashesMsg:
-		packets, traffic = propSHashOutPacketsMeter, propSHashOutTrafficMeter
-	case msg.Code == NewFastBlockMsg:
+	case msg.Code == NewBlockMsg:
 		packets, traffic = propFBlockOutPacketsMeter, propFBlockOutTrafficMeter
-	case msg.Code == NewSnailBlockMsg:
-		packets, traffic = propSBlockOutPacketsMeter, propSBlockOutTrafficMeter
-	case msg.Code == TxMsg:
+	case msg.Code == TransactionMsg:
 		packets, traffic = propTxnOutPacketsMeter, propTxnOutTrafficMeter
-	case msg.Code == NewFruitMsg:
-		packets, traffic = propFtnOutPacketsMeter, propFtnOutTrafficMeter
 	case msg.Code == TbftNodeInfoMsg:
 		packets, traffic = propNodeInfoOutPacketsMeter, propNodeInfoOutTrafficMeter
 	case msg.Code == TbftNodeInfoHashMsg:
 		packets, traffic = propNodeInfoHashOutPacketsMeter, propNodeInfoHashOutTrafficMeter
 	case msg.Code == GetTbftNodeInfoMsg:
 		packets, traffic = getNodeInfoOutPacketsMeter, getNodeInfoOutTrafficMeter
-	case msg.Code == GetFastBlockHeadersMsg:
+	case msg.Code == GetBlockHeadersMsg:
 		packets, traffic = getHeadOutPacketsMeter, getHeadOutTrafficMeter
-	case msg.Code == GetFastBlockBodiesMsg:
+	case msg.Code == GetBlockBodiesMsg:
 		packets, traffic = getHeadInPacketsMeter, getHeadOutTrafficMeter
-	case msg.Code == GetSnailBlockBodiesMsg:
-		packets, traffic = getBodyOutPacketsMeter, getBodyOutTrafficMeter
 	}
 	packets.Mark(1)
 	traffic.Mark(int64(msg.Size))

@@ -4,11 +4,11 @@ package etrue
 
 import (
 	"math/big"
-
+	"time"
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
-	"github.com/truechain/truechain-engineering-code/consensus/minerva"
 	"github.com/truechain/truechain-engineering-code/core"
+	"github.com/truechain/truechain-engineering-code/params"
 	"github.com/truechain/truechain-engineering-code/etrue/downloader"
 	"github.com/truechain/truechain-engineering-code/etrue/gasprice"
 )
@@ -125,6 +125,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.DatabaseHandles != nil {
 		c.DatabaseHandles = *dec.DatabaseHandles
 	}
+	if dec.CommitteeBase != nil {
+		c.CommitteeBase = *dec.CommitteeBase
+	}
 	if dec.DatabaseCache != nil {
 		c.DatabaseCache = *dec.DatabaseCache
 	}
@@ -148,9 +151,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.CommitteeKey != nil {
 		c.CommitteeKey = *dec.CommitteeKey
-	}
-	if dec.CommitteeBase != nil {
-		c.CommitteeBase = *dec.CommitteeBase
 	}
 	if dec.NodeType != nil {
 		c.NodeType = *dec.NodeType

@@ -28,7 +28,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"github.com/truechain/truechain-engineering-code/accounts"
-	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
 	"github.com/truechain/truechain-engineering-code/consensus"
 	elect "github.com/truechain/truechain-engineering-code/consensus/election"
@@ -85,14 +84,12 @@ type Truechain struct {
 
 	APIBackend *TrueAPIBackend
 	gasPrice  *big.Int
-	etherbase common.Address
-
 	networkID     uint64
 	netRPCService *trueapi.PublicNetAPI
 
 	pbftServer *tbft.Node
 
-	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+	lock sync.RWMutex // Protects the variadic fields (e.g. gas price)
 }
 
 func (s *Truechain) AddLesServer(ls LesServer) {
@@ -132,11 +129,10 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 		chainConfig:    chainConfig,
 		eventMux:       ctx.EventMux,
 		accountManager: ctx.AccountManager,
-		engine:         CreateConsensusEngine(ctx, &config.MinervaHash, chainConfig, chainDb),
+		engine:         CreateConsensusEngine(ctx, &ethash.Config{PowMode:ethash.ModeNormal}, chainDb),
 		shutdownChan:   make(chan bool),
 		networkID:      config.NetworkId,
 		gasPrice:       config.GasPrice,
-		etherbase:      config.Etherbase,
 		bloomRequests:  make(chan chan *bloombits.Retrieval),
 		bloomIndexer:   NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 	}
@@ -172,25 +168,23 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 	if config.TxPool.Journal != "" {
 		config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	}
-
-	if config.SnailPool.Journal != "" {
-		config.SnailPool.Journal = ctx.ResolvePath(config.SnailPool.Journal)
-	}
-
 	etrue.txPool = core.NewTxPool(config.TxPool, etrue.chainConfig, etrue.blockchain)
 	etrue.election = elect.NewElection(etrue.chainConfig, etrue.blockchain, etrue.config)
+	checkpoint := config.Checkpoint
+	cacheLimit := cacheConfig.TrieCleanLimit
 
 	etrue.engine.SetElection(etrue.election)
 	etrue.election.SetEngine(etrue.engine)
 
-	//coinbase, _ := etrue.Etherbase()
 	etrue.agent = NewPbftAgent(etrue, etrue.chainConfig, etrue.engine, etrue.election, config.MinerGasFloor, config.MinerGasCeil)
+
 	if etrue.protocolManager, err = NewProtocolManager(
-		etrue.chainConfig, config.SyncMode, config.NetworkId,
+		etrue.chainConfig,checkpoint, config.SyncMode, config.NetworkId,
 		etrue.eventMux, etrue.txPool, etrue.engine,
-		etrue.blockchain, chainDb, etrue.agent); err != nil {
+		etrue.blockchain, chainDb, etrue.agent,cacheLimit,config.Whitelist); err != nil {
 		return nil, err
 	}
+
 	etrue.APIBackend = &TrueAPIBackend{etrue, nil}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
@@ -199,7 +193,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Truechain, error) {
 	etrue.APIBackend.gpo = gasprice.NewOracle(etrue.APIBackend, gpoParams)
 	return etrue, nil
 }
-
 func makeExtraData(extra []byte) []byte {
 	if len(extra) == 0 {
 		// create default extradata
@@ -230,8 +223,7 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (etruedb.Da
 }
 
 // CreateConsensusEngine creates the required type of consensus engine instance for an Truechain service
-func CreateConsensusEngine(ctx *node.ServiceContext, config *ethash.Config, chainConfig *params.ChainConfig,
-	db etruedb.Database) consensus.Engine {
+func CreateConsensusEngine(ctx *node.ServiceContext, config *ethash.Config,db etruedb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	// snail chain not need clique
 	/*
@@ -318,37 +310,6 @@ func (s *Truechain) ResetWithGenesisBlock(gb *types.Block) {
 func (s *Truechain) ResetWithFastGenesisBlock(gb *types.Block) {
 	s.blockchain.ResetWithGenesisBlock(gb)
 }
-
-func (s *Truechain) Etherbase() (eb common.Address, err error) {
-	s.lock.RLock()
-	etherbase := s.etherbase
-	s.lock.RUnlock()
-
-	if etherbase != (common.Address{}) {
-		return etherbase, nil
-	}
-	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
-		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-			etherbase := accounts[0].Address
-
-			s.lock.Lock()
-			s.etherbase = etherbase
-			s.lock.Unlock()
-
-			log.Info("Coinbase automatically configured", "address", etherbase)
-			return etherbase, nil
-		}
-	}
-	return common.Address{}, fmt.Errorf("coinbase must be explicitly specified")
-}
-
-// SetEtherbase sets the mining reward address.
-func (s *Truechain) SetEtherbase(etherbase common.Address) {
-	s.lock.Lock()
-	s.etherbase = etherbase
-	s.agent.committeeNode.Coinbase = etherbase
-	s.lock.Unlock()
-}
 func (s *Truechain) PbftAgent() *PbftAgent             { return s.agent }
 func (s *Truechain) AccountManager() *accounts.Manager { return s.accountManager }
 func (s *Truechain) BlockChain() *core.BlockChain      { return s.blockchain }
@@ -386,12 +347,7 @@ func (s *Truechain) Start(srvr *p2p.Server) error {
 
 	// Figure out a max peers count based on the server limits
 	maxPeers := srvr.MaxPeers
-	if s.config.LightServ > 0 {
-		if s.config.LightPeers >= srvr.MaxPeers {
-			return fmt.Errorf("invalid peer config: light peer count (%d) >= total peer count (%d)", s.config.LightPeers, srvr.MaxPeers)
-		}
-		maxPeers -= s.config.LightPeers
-	}
+
 	// Start the networking layer and the light server if requested
 	s.protocolManager.Start(maxPeers)
 	if s.lesServer != nil {
@@ -408,11 +364,10 @@ func (s *Truechain) Start(srvr *p2p.Server) error {
 
 	s.election.Start()
 	// Start the networking layer and the light server if requested
-	s.protocolManager.Start2(maxPeers)
+	s.protocolManager.Start(maxPeers)
 	if s.lesServer != nil {
 		s.lesServer.Start(srvr)
 	}
-
 	return nil
 }
 

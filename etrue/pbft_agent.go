@@ -76,7 +76,6 @@ type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
 	Config() *Config
-	Etherbase() (etherbase common.Address, err error)
 }
 
 // PbftAgent receive events from election and communicate with pbftServer
@@ -186,7 +185,10 @@ func NewPbftAgent(etrue Backend, config *params.ChainConfig, engine consensus.En
 func (agent *PbftAgent) initNodeInfo(etrue Backend) {
 	//config *Config, coinbase common.Address
 	config := etrue.Config()
-	coinbase, _ := etrue.Etherbase()
+	coinbase := config.CommitteeBase
+	if (coinbase == common.Address{} && agent.privateKey != nil) {
+		coinbase = crypto.PubkeyToAddress(agent.privateKey.PublicKey)
+	}
 	agent.initNodeWork()
 	agent.singleNode = config.NodeType
 	agent.privateKey = config.PrivateKey

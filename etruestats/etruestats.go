@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json"
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/mclock"
 	"github.com/truechain/truechain-engineering-code/log"
@@ -229,7 +228,6 @@ func (s *Service) loop() {
 		}
 		// Keep sending status updates until the connection breaks
 		fullReport := time.NewTicker(15 * time.Second)
-		snailBlockReport := time.NewTicker(10 * time.Minute)
 		for err == nil {
 			select {
 			case <-quitCh:
@@ -635,7 +633,6 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 	var (
 		isCommitteeMember bool
 		isLeader          bool
-		hashrate          int
 		syncing           bool
 		gasprice          int
 	)

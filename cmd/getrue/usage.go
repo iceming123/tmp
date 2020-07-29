@@ -63,7 +63,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.EtrueStatsURLFlag,
 			utils.IdentityFlag,
 			utils.LightServFlag,
-			utils.LightPeersFlag,
 			utils.LightKDFFlag,
 		},
 	},
@@ -86,11 +85,6 @@ var AppHelpFlagGroups = []flagGroup{
 	{Name: "SINGLE NODE MODEL START",
 		Flags: []cli.Flag{
 			utils.SingleNodeFlag,
-		},
-	},
-	{Name: "ELECTION",
-		Flags: []cli.Flag{
-			utils.EnableElectionFlag,
 		},
 	},
 	{Name: "TBFT COMMITTEE",
@@ -173,15 +167,9 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "MINER",
 		Flags: []cli.Flag{
-			utils.MiningEnabledFlag,
-			utils.MineFruitFlag,
-			utils.MiningRemoteEnableFlag,
-			utils.MinerThreadsFlag,
-			utils.CoinbaseFlag,
 			utils.GasTargetFlag,
 			utils.GasLimitFlag,
 			utils.GasPriceFlag,
-			utils.ExtraDataFlag,
 		},
 	},
 	{

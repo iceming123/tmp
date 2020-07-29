@@ -34,7 +34,6 @@ import (
 	"github.com/truechain/truechain-engineering-code/common"
 	"github.com/truechain/truechain-engineering-code/common/hexutil"
 	"github.com/truechain/truechain-engineering-code/common/math"
-	ethash "github.com/truechain/truechain-engineering-code/consensus/minerva"
 	"github.com/truechain/truechain-engineering-code/core"
 	"github.com/truechain/truechain-engineering-code/core/rawdb"
 	"github.com/truechain/truechain-engineering-code/core/types"
@@ -937,9 +936,6 @@ func (s *PublicBlockChainAPI) GetChainRewardContent(blockNr rpc.BlockNumber, add
 		fields := map[string]interface{}{
 			"Number":          hexutil.Uint64(blockNr),
 			"time":            hexutil.Uint64(content.St),
-			"developerReward": content.Foundation,
-			"blockminer":      content.CoinBase,
-			"fruitminer":      content.FruitBase,
 			"committeeReward": content.CommitteeBase,
 		}
 		return fields
