@@ -33,6 +33,7 @@ import (
 	"github.com/truechain/truechain-engineering-code/crypto"
 	"github.com/truechain/truechain-engineering-code/log"
 	"github.com/truechain/truechain-engineering-code/rlp"
+	"github.com/truechain/truechain-engineering-code/rpc"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -246,7 +247,9 @@ func (m *Minerva) Threads() int {
 
 	return m.threads
 }
-
+func (m *Minerva) APIs(chain consensus.ChainReader) []rpc.API {
+	return nil
+}
 // SetThreads updates the number of mining threads currently enabled. Calling
 // this method does not start mining, only sets the thread count. If zero is
 // specified, the miner will use all cores of the machine. Setting a thread

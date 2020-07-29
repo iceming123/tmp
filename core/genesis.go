@@ -320,7 +320,11 @@ func (g *Genesis) MustFastCommit(db etruedb.Database) *types.Block {
 	}
 	return block
 }
-
+// GenesisBlockForTesting creates and writes a block in which addr has the given wei balance.
+func GenesisBlockForTesting(db etruedb.Database, addr common.Address, balance *big.Int) *types.Block {
+	g := Genesis{Alloc: types.GenesisAlloc{addr: {Balance: balance}}, Config: params.AllMinervaProtocolChanges}
+	return g.MustFastCommit(db)
+}
 // DefaultGenesisBlock returns the Truechain main net snail block.
 func DefaultGenesisBlock() *Genesis {
 	i, _ := new(big.Int).SetString("65750000000000000000000000", 10)
